@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>CampusSync | Faculty Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+<header class="border-bottom">
+    <nav class="navbar navbar-expand bg-body-tertiary"><div class="container-fluid"><a class="navbar-brand" href="#">CampusSync</a><span class="navbar-text">Faculty</span></div></nav>
+</header>
+<div class="container-fluid">
+    <div class="row">
+        <aside class="col-12 col-md-3 col-lg-2 border-end py-3">
+            <nav class="nav flex-column gap-1" aria-label="Faculty navigation">
+                <a class="nav-link active" href="#">Dashboard</a>
+                <a class="nav-link" href="#">My Courses</a>
+                <a class="nav-link" href="#">Class Schedule</a>
+                <a class="nav-link" href="#">Attendance</a>
+                <a class="nav-link" href="#">Gradebook</a>
+            </nav>
+        </aside>
+        <main class="col-12 col-md-9 col-lg-10 p-4">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4"><h1 class="h3 mb-0">Faculty Dashboard</h1><button class="btn btn-primary" type="button">Create assignment</button></div>
+            <section class="row g-3 mb-4" aria-label="Faculty overview">
+                <div class="col-12 col-lg-8"><div class="card h-100"><div class="card-body"><h2 class="h5">Today's classes</h2><div class="table-responsive"><table class="table mb-0"><thead><tr><th scope="col">Course</th><th scope="col">Time</th><th scope="col">Room</th></tr></thead><tbody></tbody></table></div></div></div></div>
+                <div class="col-12 col-lg-4"><div class="card h-100"><div class="card-body"><h2 class="h5">Pending reviews</h2></div></div></div>
+            </section>
+            <section class="card">
+                <div class="card-body"><div class="d-flex justify-content-between align-items-center mb-3"><h2 class="h5 mb-0">Course activity</h2><a href="#">View courses</a></div><div class="table-responsive"><table class="table mb-0"><thead><tr><th scope="col">Course</th><th scope="col">Activity</th><th scope="col">Status</th></tr></thead><tbody></tbody></table></div></div>
+            </section>
+        </main>
+    </div>
+</div>
+</body>
+</html>
