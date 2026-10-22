@@ -1,7 +1,12 @@
 package com.campussync.security;
 
 import io.jsonwebtoken.JwtException;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.security.Keys;
 import org.junit.jupiter.api.Test;
+
+import java.nio.charset.StandardCharsets;
+import java.util.Date;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -33,12 +38,13 @@ class JwtServiceSecurityTest {
     @Test
     void rejectsExpiredToken() {
         JwtService service = new JwtService(SECRET, 1);
-        String token = service.generateToken(principal("STUDENT"));
+        String token = Jwts.builder()
+                .subject("student@example.com")
+                .expiration(new Date(0))
+                .signWith(Keys.hmacShaKeyFor(SECRET.getBytes(StandardCharsets.UTF_8)))
+                .compact();
 
-        org.junit.jupiter.api.Assertions.assertTimeoutPreemptively(java.time.Duration.ofSeconds(3), () -> {
-            Thread.sleep(1100);
-            assertThrows(JwtException.class, () -> service.extractUsername(token));
-        });
+        assertThrows(JwtException.class, () -> service.extractUsername(token));
     }
 
     @Test
