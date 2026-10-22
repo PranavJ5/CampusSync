@@ -1,0 +1,10 @@
+# Copy to application.properties or provide equivalent environment-backed values.
+# Never commit real credentials or signing keys.
+spring.datasource.url=${CAMPSYNC_DB_URL}
+spring.datasource.username=${CAMPSYNC_DB_USERNAME}
+spring.datasource.password=${CAMPSYNC_DB_PASSWORD}
+spring.jpa.hibernate.ddl-auto=validate
+
+campussync.jwt.secret=${CAMPSYNC_JWT_SECRET}
+campussync.jwt.expiration-seconds=${CAMPSYNC_JWT_EXPIRATION_SECONDS:3600}
+campussync.cors.allowed-origins=${CAMPSYNC_CORS_ALLOWED_ORIGINS:http://localhost:3000}

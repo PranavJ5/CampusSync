@@ -5,3 +5,7 @@ target/
 .project
 .settings/
 
+# Developer-local secrets and runtime configuration
+src/main/resources/application.properties
+src/main/resources/application-local.properties
+
