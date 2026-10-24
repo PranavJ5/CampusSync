@@ -15,6 +15,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -55,6 +57,11 @@ public class Event {
     @Column(name = "description", columnDefinition = "TEXT")
     private String description;
 
+    @NotBlank
+    @Size(max = 50)
+    @Column(name = "category", nullable = false, length = 50)
+    private String category;
+
     @NotNull
     @Column(name = "starts_at", nullable = false)
     private LocalDateTime startsAt;
@@ -62,6 +69,10 @@ public class Event {
     @NotNull
     @Column(name = "ends_at", nullable = false)
     private LocalDateTime endsAt;
+
+    @NotNull
+    @Column(name = "registration_deadline", nullable = false)
+    private LocalDateTime registrationDeadline;
 
     @NotBlank
     @Size(max = 255)
@@ -77,6 +88,25 @@ public class Event {
     @Size(max = 50)
     @Column(name = "event_status", nullable = false, length = 50)
     private String status;
+
+    @Size(max = 500)
+    @Column(name = "poster_path", length = 500)
+    private String posterPath;
+
+    @Column(name = "cancellation_reason", length = 1000)
+    private String cancellationReason;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "created_by")
+    private User createdBy;
+
+    @CreationTimestamp
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+
+    @UpdateTimestamp
+    @Column(name = "updated_at", nullable = false)
+    private LocalDateTime updatedAt;
 
     @OneToMany(mappedBy = "event")
     private Set<EventRegistration> registrations = new LinkedHashSet<>();

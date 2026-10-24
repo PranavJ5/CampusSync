@@ -10,6 +10,8 @@ import jakarta.persistence.Table;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Max;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -43,6 +45,17 @@ public class Department {
     @Size(max = 255)
     @Column(name = "contact_email", length = 255)
     private String contactEmail;
+
+    @Min(1800) @Max(9999)
+    @Column(name = "established_year")
+    private Integer establishedYear;
+
+    @Size(max = 150)
+    @Column(name = "hod_name", length = 150)
+    private String hodName;
+
+    @Column(name = "is_active", nullable = false)
+    private boolean active = true;
 
     @OneToMany(mappedBy = "department")
     private Set<Student> students = new LinkedHashSet<>();

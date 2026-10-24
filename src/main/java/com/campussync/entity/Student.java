@@ -14,6 +14,10 @@ import jakarta.persistence.Table;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PastOrPresent;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -52,6 +56,35 @@ public class Student {
     @PastOrPresent
     @Column(name = "admission_date", nullable = false)
     private LocalDate admissionDate;
+
+    @jakarta.validation.constraints.Min(1)
+    @jakarta.validation.constraints.Max(8)
+    @Column(name = "current_semester")
+    private Integer currentSemester;
+
+    @Min(1900) @Max(2100)
+    @Column(name = "admission_year")
+    private Integer admissionYear;
+
+    @PastOrPresent
+    @Column(name = "date_of_birth")
+    private LocalDate dateOfBirth;
+
+    @Pattern(regexp = "^$|^[+]?[0-9() .-]{7,20}$")
+    @Column(name = "contact_number", length = 20)
+    private String contactNumber;
+
+    @Email @Size(max = 255)
+    @Column(name = "alternate_email", length = 255)
+    private String alternateEmail;
+
+    @Size(max = 30)
+    @Column(name = "gender", length = 30)
+    private String gender;
+
+    @Size(max = 500)
+    @Column(name = "photo_path", length = 500)
+    private String photoPath;
 
     @NotBlank
     @Size(max = 50)
