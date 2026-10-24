@@ -1,14 +1,14 @@
 package com.campussync.entity;
 
 import jakarta.persistence.Column;
-import jakarta.persistence.EmbeddedId;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
-import jakarta.persistence.MapsId;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
 import jakarta.persistence.Table;
-import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PastOrPresent;
@@ -20,24 +20,23 @@ import lombok.Setter;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "committee_member")
+@Table(name = "committee_member", indexes = @jakarta.persistence.Index(name = "idx_committee_member_committee_status", columnList = "committee_id, membership_status"))
 @Getter
 @Setter
 @NoArgsConstructor
 public class CommitteeMember {
 
-    @EmbeddedId
-    @Valid
-    private CommitteeMemberId id;
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "member_id")
+    private Long id;
 
     @NotNull
-    @MapsId("committeeId")
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "committee_id", nullable = false)
     private Committee committee;
 
     @NotNull
-    @MapsId("userId")
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;

@@ -12,7 +12,6 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -33,9 +32,8 @@ public class Committee {
     @Column(name = "committee_id")
     private Long id;
 
-    @NotNull
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "department_id", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "department_id")
     private Department department;
 
     @NotBlank
@@ -51,6 +49,25 @@ public class Committee {
     @Size(max = 65535)
     @Column(name = "description", columnDefinition = "TEXT")
     private String description;
+
+    @NotBlank @Size(max = 50)
+    @Column(name = "category", nullable = false, length = 50)
+    private String category;
+
+    @jakarta.validation.constraints.Min(1800) @jakarta.validation.constraints.Max(9999)
+    @Column(name = "established_year")
+    private Integer establishedYear;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "faculty_coordinator_id")
+    private Faculty facultyCoordinator;
+
+    @Size(max = 500)
+    @Column(name = "logo_path", length = 500)
+    private String logoPath;
+
+    @Column(name = "is_active", nullable = false)
+    private boolean active = true;
 
     @NotBlank
     @Size(max = 50)
