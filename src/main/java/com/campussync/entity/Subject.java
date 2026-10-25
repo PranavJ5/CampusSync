@@ -22,7 +22,7 @@ import lombok.Setter;
 import java.math.BigDecimal;
 
 @Entity
-@Table(name = "subject", uniqueConstraints = @UniqueConstraint(name = "uk_subject_department_code", columnNames = {"department_id", "subject_code"}))
+@Table(name = "subject", uniqueConstraints = @UniqueConstraint(name = "uk_subject_code", columnNames = {"subject_code"}))
 @Getter
 @Setter
 @NoArgsConstructor
@@ -53,4 +53,20 @@ public class Subject {
     @Digits(integer = 3, fraction = 1)
     @Column(name = "credit_value", nullable = false, precision = 4, scale = 1)
     private BigDecimal creditValue;
+
+    @jakarta.validation.constraints.Min(1) @jakarta.validation.constraints.Max(8)
+    @Column(name = "semester")
+    private Integer semester;
+
+    @NotBlank @Size(max = 20)
+    @Column(name = "academic_year", length = 20)
+    private String academicYear;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "faculty_id")
+    private Faculty faculty;
+
+    @Size(max = 20)
+    @Column(name = "division", length = 20)
+    private String division;
 }

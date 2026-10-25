@@ -3,90 +3,73 @@
 CampusSync is a Smart Student Information & Campus Activity Platform for SPIT Semester V Mini Project PR1. It gives students a single place to discover activities and manage registrations, while faculty coordinators and administrators manage committees, events, and institutional data.
 
 - Guide: Prof. Govind Gaundalkar
-- Team: Pranav Jadhav, Pritam Suresh Jadhav, and Member 1
+- Team: Pranav Jadhav, Pritam Suresh Jadhav, and Sarthak Hade
 
-## Architecture
+## Backend Implementation Status
 
-The target application uses a separate client and API architecture:
-
-| Layer | Technology | Responsibility |
-| --- | --- | --- |
-| Frontend | React, Vite, Bootstrap | Responsive dashboards, event catalogue, registrations, and notifications |
-| Backend | Spring Boot 3, Java 21 | REST API, business rules, JWT-protected access, and reporting |
-| Data | MySQL 8 | Users, roles, departments, committees, events, registrations, and notifications |
-
-The current repository contains the Spring Boot foundation, JPA entities/repositories, and HTML wireframes under `src/main/resources/static/wireframes`. The React/Vite client and REST/security implementation are planned components and are not present in this revision yet.
-
-## Prerequisites
-
-- JDK 21
-- Maven 3.9 or newer (or the Maven wrapper when one is added)
-- MySQL Server 8
-- Node.js 20 LTS or newer and npm (for the planned frontend)
-- Git
-
-## Configuration
-
-Create local environment configuration with placeholder values only. Do not commit `.env` files, credentials, access tokens, or passwords.
-
-```dotenv
-DB_URL=jdbc:mysql://localhost:3306/campussync
-DB_USERNAME=your_mysql_user
-DB_PASSWORD=your_mysql_password
-APP_BOOTSTRAP_ADMIN_EMAIL=admin@example.com
-APP_BOOTSTRAP_ADMIN_PASSWORD=choose_a_secure_local_password
-JWT_SECRET=replace_with_a_long_random_local_secret
-JWT_EXPIRATION_MS=3600000
-```
-
-When application configuration is added, map these values through environment variables or local, ignored configuration. Never place real values in source control.
-
-## Run the backend
-
-1. Create a local MySQL 8 database named `campussync`.
-2. Set the environment variables above in your shell or IDE run configuration.
-3. From the project root, run:
-
-```bash
-mvn clean spring-boot:run
-```
-
-The current backend is a foundation only; REST controllers, JWT security configuration, and database migration scripts still need to be added by the backend owners.
-
-## Run the frontend
-
-Once the React/Vite frontend exists at `frontend/`, run:
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-Validate a production build with:
-
-```bash
-npm run build
-```
-
-## Team work division
-
-| Member | Area |
-| --- | --- |
-| Member 1 | Spring Boot API, authentication/JWT, persistence, and migrations |
-| Member 2 | Domain features and backend business logic for departments, committees, events, and registrations |
-| Pritam Suresh Jadhav (Member 3) | Frontend integration, resilient client state, dashboards, event/registration/notification UX, and project documentation |
-
-## Git workflow
-
-1. Start from the shared integration branch: `git checkout develop && git pull origin develop`.
-2. Create a focused branch using the `feature/` prefix, for example `feature/frontend-integration-docs`.
-3. Keep commits small and use semantic messages such as `feat(frontend): add event registration feedback`.
-4. Run the relevant build before pushing, then open a pull request to `develop`.
-5. Do not commit `node_modules`, `dist`, `target`, `.env`, access tokens, or personal credentials.
-
-> Repository note: at the time this document was updated, this remote exposes `main` but does not yet expose a `develop` branch. Create/publish `develop` before the shared-branch workflow can be used.
+This branch incorporates the backend implementation alongside the frontend application:
+- Contains the event and registration management, auth/security layer, committee management, and notifications.
+- Current limitations / deferred items: live schema/migration reconciliation, poster image file uploads, participant export filtering, full subject allocation lifecycle, and admin reporting summaries.
 
 ## Phase 3 demonstration
 
 See [the presentation guide](docs/presentation-guide.md) for the role-based walkthrough and expected observable outcomes.
+# CampusSync backend status
+
+This branch contains the existing event/registration slice plus the backend work listed below. Phase 1 contains no AI/ML.
+
+## Implemented API surface
+
+- Events: `GET /api/events`, `GET /api/events/{id}`, `POST /api/events`, `PUT /api/events/{id}`, `DELETE /api/events/{id}` (draft only), `POST /api/events/{id}/publish`, `/cancel`, and `/complete`.
+- Registration: `POST` and `DELETE /api/events/{eventId}/registrations`; coordinator/admin `GET` participant list; single attendance at `PATCH /api/events/{eventId}/registrations/{userId}/attendance` and batch attendance at `PATCH /api/events/{eventId}/registrations/attendance`.
+- Notifications: paginated `GET /api/notifications` with category/unread filters, `GET /api/notifications/unread-count`, `GET /api/notifications/{id}` (marks read), `PATCH /api/notifications/{id}/read`, `PATCH /api/notifications/read-all`, and scoped `POST /api/notifications` publishing.
+- Departments: authenticated list/detail, administrator create/update.
+- Students: own profile and contact update, admin create/update/list, faculty department-scoped filtered/paginated listing (maximum 25 per page).
+- Faculty: admin listing/create/update and own/admin profile read.
+- Subjects: authenticated list/detail with department filtering, admin create/update, semester/year/faculty/division allocation fields.
+- Committees: authenticated list/detail, administrator profile create/update, active member list with department/semester filters, history list, own membership list, and scoped coordinator/admin add/soft-remove membership operations. Only administrators may grant coordinator privileges.
+
+Request DTOs validate required fields and supported member roles. Notification delivery is represented by a per-user `notification_recipient` row; reads and unread counts are scoped to the authenticated recipient. Event registration, cancellation, attendance, and event cancellation run transactionally.
+
+## Authorization integration boundary
+
+There is no authentication provider or Spring Security configuration in this repository. Protected controllers require a servlet `Principal`, resolve it to an active database user, and check database roles and committee membership. A Principal is trusted only when supplied by a trusted upstream servlet/container authentication mechanism. With no such integration, a normal unauthenticated request has no Principal and receives 401; no header-based or hard-coded bypass is provided. The authentication teammate must configure trusted principal creation before these endpoints can be used.
+
+Administrators have global management rights. A coordinator operation is scoped to an active coordinator membership for that committee. Committee profile changes and coordinator assignment are administrator-only. Students can access their own student profile and notification/registration records; participant lists and attendance are coordinator/admin-only. Completed-event attendance correction is admin-only.
+
+## Database and migration status
+
+- `src/main/resources/db/manual/ADD_EVENT_REGISTRATION_DEADLINE.sql` is an unversioned manual script. It adds `event.registration_deadline`, backfills from `starts_at`, and creates `notification_recipient` if absent. The `ALTER TABLE ... ADD COLUMN` is not idempotent, and `CREATE TABLE IF NOT EXISTS` does not verify an existing table's columns or constraints.
+- `src/main/resources/db/manual/PROPOSED_EVENT_COMMITTEE_NOTIFICATION_ALIGNMENT.sql` proposes a generated membership key, a unique active-membership guard, SRS event/notification fields, student semester and remaining academic attributes. It includes preflight queries for duplicate active memberships and subject codes. It is proposal-only, outside Flyway's discovery directory, and must not be applied as written until the live table definitions, data types, indexes, constraints, and `flyway_schema_history` are reviewed.
+- This repository has no Flyway dependency or versioned migration. No database connection was made, so the migration version and live schema compatibility are unknown. Do not execute either SQL file against the existing database without explicit approval and a reviewed backup/rollback plan.
+- Existing entity column names such as `department_code`, `enrollment_number`, `event_title`, `starts_at`, and `capacity` are retained for compatibility with the current project mappings. The SRS uses different names in places. The proposed SQL is additive where possible; exact renames and constraint names still require live schema inspection.
+
+## Concurrency test
+
+`EventRegistrationMySqlConcurrencyTest` uses two independent service transactions, a barrier, and an isolated MySQL 8.0.36 database to race for one remaining seat. It has been successfully executed against isolated MySQL 8.0.36: 1 test passed, 0 skipped. The test uses `spring.jpa.hibernate.ddl-auto=create-drop`; any external database must be dedicated and disposable, with a database name ending in `_test`.
+
+With Docker available, start Docker Desktop/the Docker daemon and run:
+
+```powershell
+mvn -Dtest=EventRegistrationMySqlConcurrencyTest test
+```
+
+Alternatively, provide an isolated MySQL test database through environment variables (do not use the existing CampusSync database):
+
+```powershell
+$env:CAMPUSSYNC_TEST_MYSQL_URL = 'jdbc:mysql://127.0.0.1:3306/campussync_test'
+$env:CAMPUSSYNC_TEST_MYSQL_USERNAME = 'test_user'
+$env:CAMPUSSYNC_TEST_MYSQL_PASSWORD = 'test_password'
+mvn -Dtest=EventRegistrationMySqlConcurrencyTest test
+```
+
+The test refuses an external JDBC URL unless its database name ends in `_test`; because it uses `create-drop`, the database must contain no valuable data. The application migration scripts are not applied by this test.
+
+## SRS status
+
+Implemented or materially covered: event draft/publish lifecycle; deadline and capacity checks; student-only self-registration; duplicate prevention; registration cancellation before deadline; confirmation/cancellation notifications; event cancellation with reason and registration cancellation; completion transition; event publication and 24-hour reminder notifications; notification recipient isolation and read state; committee membership soft removal and repeat membership history; admin/coordinator scoping; student semester and academic fields; faculty/department/subject/committee additions.
+
+Still incomplete or partial: live schema/migration compatibility; poster image upload and 2 MB JPEG/PNG validation; participant filtering/export, registration history/upcoming-vs-past endpoint, attendance/reporting summaries; event schedule/venue update notification behavior is implemented but has not been integration-tested; notifications do not yet include public committee announcements, all admin audience combinations are limited to implemented resolver paths, and delivery from a configured system principal is not available; student photo upload/storage is represented only by a path; several SRS profile fields and historical values are nullable until authoritative data is supplied; committee achievements, deletion/deactivation controls, full subject allocation lifecycle, and admin reporting are not complete.
+
+This README distinguishes implemented routes from deferred requirements; it does not assert that a live MySQL schema has been reconciled.
+

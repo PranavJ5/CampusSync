@@ -14,6 +14,8 @@ import jakarta.persistence.Table;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.PastOrPresent;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -54,4 +56,16 @@ public class Faculty {
     @Size(max = 50)
     @Column(name = "employment_status", nullable = false, length = 50)
     private String employmentStatus;
+
+    @Size(max = 150)
+    @Column(name = "qualification", length = 150)
+    private String qualification;
+
+    @Size(max = 20)
+    @Column(name = "contact_number", length = 20)
+    private String contactNumber;
+
+    @PastOrPresent
+    @Column(name = "date_of_joining")
+    private java.time.LocalDate dateOfJoining;
 }
