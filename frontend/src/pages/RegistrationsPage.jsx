@@ -11,12 +11,11 @@ export default function RegistrationsPage() {
   const [notice, setNotice] = useState('')
 
   const load = useCallback(async () => {
-    setLoading(true); setError('')
     try { setRegistrations(asList((await api.get('/registrations/me')).data)) }
     catch (requestError) { setError(getErrorMessage(requestError, 'Your registrations could not be loaded.')) }
     finally { setLoading(false) }
   }, [])
-  useEffect(() => { load() }, [load])
+  useEffect(() => { void Promise.resolve().then(load) }, [load])
 
   const filtered = useMemo(() => registrations.filter((registration) => {
     const event = registration.event || registration

@@ -3,6 +3,7 @@ package com.campussync.service;
 import com.campussync.dto.TimetableDashboardResponse;
 import com.campussync.dto.TimetableEntryRequest;
 import com.campussync.dto.TimetableEntryResponse;
+import com.campussync.dto.SubjectResponse;
 import com.campussync.entity.Department;
 import com.campussync.entity.Faculty;
 import com.campussync.entity.Student;
@@ -18,7 +19,10 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Comparator;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -88,6 +92,16 @@ public class TimetableService {
     }
 
     @Transactional(readOnly = true)
+    public List<SubjectResponse> facultySubjects(Principal principal) {
+        var account = authorization.requireRole(principal, "FACULTY");
+        faculty.findByUserId(account.getId())
+                .orElseThrow(() -> new NoSuchElementException("Faculty profile not found."));
+        return subjects.findByFacultyUserIdOrderByNameAsc(account.getId()).stream()
+                .map(SubjectResponse::from)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
     public List<TimetableEntryResponse> managementList(Principal principal) {
         authorization.requireRole(principal, "ADMINISTRATOR");
         return entries.findAllByOrderByDepartmentNameAscSemesterAscDivisionAscDayOfWeekAscStartTimeAsc()
@@ -97,6 +111,27 @@ public class TimetableService {
     @Transactional
     public TimetableEntryResponse create(TimetableEntryRequest request, Principal principal) {
         authorization.requireRole(principal, "ADMINISTRATOR");
+        return save(new TimetableEntry(), request);
+    }
+
+    @Transactional
+    public TimetableEntryResponse createFacultyLecture(TimetableEntryRequest request, Principal principal) {
+        var account = authorization.requireRole(principal, "FACULTY");
+        Faculty assignedFaculty = faculty.findByUserId(account.getId())
+                .orElseThrow(() -> new NoSuchElementException("Faculty profile not found."));
+        if (!"LECTURE".equalsIgnoreCase(request.classType())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "Faculty accounts can schedule lectures only.");
+        }
+        if (request.subjectId() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A lecture must have an assigned subject.");
+        }
+        Subject subject = subjects.findById(request.subjectId())
+                .orElseThrow(() -> new NoSuchElementException("Subject not found."));
+        if (subject.getFaculty() == null || !assignedFaculty.getId().equals(subject.getFaculty().getId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "Faculty can schedule only their assigned subjects.");
+        }
         return save(new TimetableEntry(), request);
     }
 
@@ -129,6 +164,9 @@ public class TimetableService {
         }
         if (request.academicYear() == null || request.academicYear().isBlank() || request.effectiveFrom() == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Academic year and effective date are required.");
+        }
+        if ("LECTURE".equals(classType) && (request.venue() == null || request.venue().isBlank())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A lecture must have a room or venue.");
         }
 
         Department department;
@@ -179,16 +217,25 @@ public class TimetableService {
                 .findByDepartmentIdAndSemesterAndDivisionIgnoreCaseAndAcademicYearAndEffectiveFromAndDayOfWeek(
                         department.getId(), semester, division, request.academicYear().trim(),
                         request.effectiveFrom(), request.dayOfWeek());
-        boolean overlaps = Boolean.TRUE.equals(request.active() == null ? entry.isActive() : request.active())
-                && sameSchedule.stream()
-                .filter(other -> !other.getId().equals(entry.getId()))
-                .filter(TimetableEntry::isActive)
-                .anyMatch(other -> request.startTime().isBefore(other.getEndTime())
-                        && other.getStartTime().isBefore(request.endTime())
-                        && !separateLabBatches(other, classType, labBatch));
-        if (overlaps) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "This timetable slot overlaps another active entry for the same division.");
+        List<TimetableEntry> lockedOverlaps = entries.findActiveOverlappingEntries(
+                request.academicYear().trim(), request.effectiveFrom(), request.dayOfWeek(),
+                request.startTime(), request.endTime());
+        Map<Long, TimetableEntry> candidates = new LinkedHashMap<>();
+        for (TimetableEntry candidate : new ArrayList<>(sameSchedule == null ? List.of() : sameSchedule)) {
+            if (candidate.getId() != null) candidates.put(candidate.getId(), candidate);
+        }
+        for (TimetableEntry candidate : new ArrayList<>(lockedOverlaps == null ? List.of() : lockedOverlaps)) {
+            if (candidate.getId() != null) candidates.put(candidate.getId(), candidate);
+        }
+        if (Boolean.TRUE.equals(request.active() == null ? entry.isActive() : request.active())) {
+            for (TimetableEntry other : candidates.values()) {
+                if (entry.getId() != null && entry.getId().equals(other.getId())) continue;
+                if (conflicts(other, department, semester, division, assignedFaculty, classType, labBatch,
+                        request.venue(), request.startTime(), request.endTime())) {
+                    throw new ResponseStatusException(HttpStatus.CONFLICT, conflictMessage(other, assignedFaculty,
+                            classType, request.venue()));
+                }
+            }
         }
 
         entry.setSubject(subject);
@@ -240,6 +287,35 @@ public class TimetableService {
                 && hasSpecificLabBatch(existing)
                 && labBatch != null
                 && !existing.getLabBatch().equalsIgnoreCase(labBatch);
+    }
+
+    private static boolean conflicts(TimetableEntry other, Department department, Integer semester, String division,
+                                    Faculty assignedFaculty, String classType, String labBatch, String venue,
+                                    java.time.LocalTime startTime, java.time.LocalTime endTime) {
+        if (!startTime.isBefore(other.getEndTime()) || !other.getStartTime().isBefore(endTime)) return false;
+        if (sameVenue(venue, other.getVenue())) return true;
+        if (("LECTURE".equals(classType) || "LECTURE".equalsIgnoreCase(other.getClassType()))
+                && assignedFaculty != null && other.getFaculty() != null
+                && assignedFaculty.getId().equals(other.getFaculty().getId())) return true;
+        return department.getId().equals(other.getDepartment().getId())
+                && semester.equals(other.getSemester())
+                && division.equalsIgnoreCase(other.getDivision())
+                && !separateLabBatches(other, classType, labBatch);
+    }
+
+    private static boolean sameVenue(String requested, String existing) {
+        return requested != null && !requested.isBlank() && existing != null && !existing.isBlank()
+                && requested.trim().equalsIgnoreCase(existing.trim());
+    }
+
+    private static String conflictMessage(TimetableEntry other, Faculty assignedFaculty, String classType,
+                                          String venue) {
+        if (sameVenue(venue, other.getVenue())) return "The room is already occupied during this time.";
+        if (("LECTURE".equals(classType) || "LECTURE".equalsIgnoreCase(other.getClassType()))
+                && assignedFaculty != null && other.getFaculty() != null
+                && assignedFaculty.getId().equals(other.getFaculty().getId()))
+            return "The assigned faculty member already has a class during this time.";
+        return "This class group already has an overlapping timetable entry.";
     }
 
     private static boolean hasSpecificLabBatch(TimetableEntry entry) {

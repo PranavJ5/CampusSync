@@ -16,7 +16,7 @@ import org.springframework.web.server.ResponseStatusException;
 @Service
 public class AuthorizationService {
     private static final Set<String> SCOPED_COORDINATOR_ROLES =
-            Set.of("COMMITTEE_COORDINATOR", "FACULTY", "STUDENT");
+            Set.of("COMMITTEE_COORDINATOR");
 
     private final UserRepository users;
     private final CommitteeMemberRepository memberships;

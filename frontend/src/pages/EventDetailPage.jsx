@@ -23,7 +23,7 @@ export default function EventDetailPage() {
   const [registering, setRegistering] = useState(false)
 
   const load = useCallback(async () => {
-    setLoading(true); setError(''); setRegistrationLoading(true); setRegistrationError('')
+    setError(''); setRegistrationLoading(true); setRegistrationError('')
     const [eventResult, registrationResult] = await Promise.allSettled([
       api.get(`/events/${id}`),
       api.get(`/events/${id}/registrations/me`),
@@ -41,7 +41,7 @@ export default function EventDetailPage() {
     setLoading(false)
     setRegistrationLoading(false)
   }, [id])
-  useEffect(() => { load() }, [load])
+  useEffect(() => { void Promise.resolve().then(load) }, [load])
 
   const register = async () => {
     setRegistering(true); setNotice(null)

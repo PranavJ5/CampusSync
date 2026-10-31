@@ -208,6 +208,74 @@ class TimetableServiceTest {
     }
 
     @Test
+    void rejectsOverlappingLectureInTheSameRoom() {
+        when(authorization.requireRole(adminPrincipal, "ADMINISTRATOR")).thenReturn(new User());
+        when(subjects.findById(7L)).thenReturn(Optional.of(subject));
+        TimetableEntry existing = entry(18L, DayOfWeek.MONDAY, LocalTime.of(10, 0));
+        existing.setEndTime(LocalTime.of(11, 0));
+        existing.setVenue("Room 204");
+        when(entries.findActiveOverlappingEntries("2026-27", LocalDate.of(2026, 8, 10), DayOfWeek.MONDAY,
+                LocalTime.of(10, 30), LocalTime.of(11, 30))).thenReturn(List.of(existing));
+        var request = new TimetableEntryRequest(7L, null, null, null, null, DayOfWeek.MONDAY,
+                LocalTime.of(10, 30), LocalTime.of(11, 30), "Room 204", "LECTURE", null,
+                "2026-27", LocalDate.of(2026, 8, 10), true);
+
+        ResponseStatusException error = assertThrows(ResponseStatusException.class,
+                () -> service.create(request, adminPrincipal));
+
+        assertEquals(HttpStatus.CONFLICT, error.getStatusCode());
+        assertTrue(error.getReason().contains("room"));
+        verify(entries, never()).saveAndFlush(any());
+    }
+
+    @Test
+    void facultyCanScheduleAnAssignedLectureWithRoom() {
+        User facultyUser = new User();
+        facultyUser.setId(31L);
+        when(authorization.requireRole(facultyPrincipal, "FACULTY")).thenReturn(facultyUser);
+        facultyProfile.setId(41L);
+        when(faculty.findByUserId(31L)).thenReturn(Optional.of(facultyProfile));
+        subject.setFaculty(facultyProfile);
+        when(subjects.findById(7L)).thenReturn(Optional.of(subject));
+        when(entries.saveAndFlush(any())).thenAnswer(invocation -> {
+            TimetableEntry created = invocation.getArgument(0);
+            created.setId(19L);
+            return created;
+        });
+        var request = new TimetableEntryRequest(7L, null, null, null, null, DayOfWeek.TUESDAY,
+                LocalTime.of(12, 0), LocalTime.of(13, 0), "Room 301", "LECTURE", null,
+                "2026-27", LocalDate.of(2026, 8, 10), true);
+
+        var result = service.createFacultyLecture(request, facultyPrincipal);
+
+        assertEquals(19L, result.id());
+        assertEquals("Room 301", result.venue());
+        assertEquals("B", result.division());
+        verify(entries).saveAndFlush(any());
+    }
+
+    @Test
+    void facultyCannotScheduleAnUnassignedSubject() {
+        User facultyUser = new User();
+        facultyUser.setId(31L);
+        Faculty otherFaculty = new Faculty();
+        otherFaculty.setId(99L);
+        when(authorization.requireRole(facultyPrincipal, "FACULTY")).thenReturn(facultyUser);
+        facultyProfile.setId(41L);
+        when(faculty.findByUserId(31L)).thenReturn(Optional.of(facultyProfile));
+        subject.setFaculty(otherFaculty);
+        when(subjects.findById(7L)).thenReturn(Optional.of(subject));
+
+        ResponseStatusException error = assertThrows(ResponseStatusException.class,
+                () -> service.createFacultyLecture(new TimetableEntryRequest(7L, null, null, null, null,
+                        DayOfWeek.TUESDAY, LocalTime.of(12, 0), LocalTime.of(13, 0), "Room 301", "LECTURE",
+                        null, "2026-27", LocalDate.of(2026, 8, 10), true), facultyPrincipal));
+
+        assertEquals(HttpStatus.FORBIDDEN, error.getStatusCode());
+        verify(entries, never()).saveAndFlush(any());
+    }
+
+    @Test
     void studentDashboardShowsOnlyTheStudentsAssignedBatch() {
         User account = new User();
         account.setId(21L);
@@ -217,6 +285,7 @@ class TimetableServiceTest {
         profile.setDivision("B");
         profile.setLabBatch("B2");
         TimetableEntry common = entry(11L, DayOfWeek.MONDAY, LocalTime.of(8, 0));
+        common.setVenue("Room 101");
         TimetableEntry batchOne = entry(12L, DayOfWeek.MONDAY, LocalTime.of(9, 0));
         batchOne.setClassType("LAB");
         batchOne.setLabBatch("B1");
@@ -232,6 +301,7 @@ class TimetableServiceTest {
         var result = service.studentDashboard(studentPrincipal);
 
         assertEquals(2, result.weekly().size());
+        assertEquals("Room 101", result.weekly().getFirst().venue());
         assertEquals("B2", result.weekly().get(1).labBatch());
         assertFalse(result.labBatchAssignmentRequired());
     }

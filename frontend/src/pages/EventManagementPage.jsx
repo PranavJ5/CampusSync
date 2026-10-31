@@ -34,6 +34,7 @@ export default function EventManagementPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [publishingId, setPublishingId] = useState(null)
+  const [cancellingId, setCancellingId] = useState(null)
   const [participantsEvent, setParticipantsEvent] = useState(null)
   const [participants, setParticipants] = useState([])
   const [participantsLoading, setParticipantsLoading] = useState(false)
@@ -57,11 +58,9 @@ export default function EventManagementPage() {
     }
   }, [])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => { void Promise.resolve().then(load) }, [load])
 
   const retryLoad = () => {
-    setLoading(true)
-    setError('')
     load()
   }
 
@@ -167,6 +166,35 @@ export default function EventManagementPage() {
       setError(getErrorMessage(requestError, 'This event could not be published.'))
     } finally {
       setPublishingId(null)
+    }
+  }
+
+  const cancelEvent = async (event) => {
+    const reason = window.prompt('Enter a cancellation reason (optional):', '')
+    if (reason === null) return
+    if (!window.confirm(`Cancel “${event.title}”? Students will no longer be able to register.`)) return
+    setCancellingId(event.id)
+    setError('')
+    setNotice('')
+    try {
+      await api.post(`/events/${event.id}/cancel`, { reason: reason.trim() || null })
+      setNotice(`“${event.title}” was cancelled.`)
+      setLoading(true)
+      await load()
+    } catch (requestError) {
+      setError(getErrorMessage(requestError, 'This event could not be cancelled.'))
+    } finally {
+      setCancellingId(null)
+    }
+  }
+
+  const copyEventLink = async (event) => {
+    const link = `${window.location.origin}/events/${event.id}`
+    try {
+      await navigator.clipboard.writeText(link)
+      setNotice('Shareable event link copied.')
+    } catch {
+      setNotice(link)
     }
   }
 
@@ -278,7 +306,9 @@ export default function EventManagementPage() {
                   <td className="text-end text-nowrap">
                     <button type="button" className="btn btn-sm btn-outline-secondary me-2" onClick={() => showParticipants(event)}>Participants</button>
                     <button type="button" className="btn btn-sm btn-outline-primary me-2" onClick={() => editEvent(event)} disabled={!['DRAFT', 'PUBLISHED'].includes(status)}>Edit</button>
-                    {status === 'DRAFT' && <button type="button" className="btn btn-sm btn-primary" onClick={() => publish(event)} disabled={publishingId === event.id}>{publishingId === event.id ? 'Publishing...' : 'Publish'}</button>}
+                    {status === 'PUBLISHED' && <button type="button" className="btn btn-sm btn-outline-primary me-2" onClick={() => copyEventLink(event)}>Copy link</button>}
+                    {status === 'DRAFT' && <button type="button" className="btn btn-sm btn-primary me-2" onClick={() => publish(event)} disabled={publishingId === event.id}>{publishingId === event.id ? 'Publishing...' : 'Publish'}</button>}
+                    {['PUBLISHED', 'REGISTRATION_CLOSED'].includes(status) && <button type="button" className="btn btn-sm btn-outline-danger" onClick={() => cancelEvent(event)} disabled={cancellingId === event.id}>{cancellingId === event.id ? 'Cancelling...' : 'Cancel event'}</button>}
                   </td>
                 </tr>
               })}</tbody>

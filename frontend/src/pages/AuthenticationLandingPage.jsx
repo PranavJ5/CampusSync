@@ -1,6 +1,8 @@
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 
 export default function AuthenticationLandingPage() {
+  const location = useLocation()
+  const loginState = location.state?.from ? { from: location.state.from } : undefined
   return (
     <main className="login-page">
       <section className="login-shell">
@@ -34,10 +36,10 @@ export default function AuthenticationLandingPage() {
             <h2 className="h2 mb-2">Choose your sign-in</h2>
             <p className="text-secondary mb-4">Select the role that matches your CampusSync account.</p>
             <div className="d-grid gap-3">
-              <Link className="btn btn-primary btn-lg" to="/login/student">Continue as Student</Link>
-              <Link className="btn btn-outline-primary btn-lg" to="/login/faculty">Continue as Faculty</Link>
-              <Link className="btn btn-outline-primary btn-lg" to="/login/coordinator">Continue as Committee Coordinator</Link>
-              <Link className="btn btn-outline-primary btn-lg" to="/login/administrator">Continue as Administrator</Link>
+              <Link className="btn btn-primary btn-lg" to="/login/student" state={loginState}>Continue as Student</Link>
+              <Link className="btn btn-outline-primary btn-lg" to="/login/faculty" state={loginState}>Continue as Faculty</Link>
+              <Link className="btn btn-outline-primary btn-lg" to="/login/coordinator" state={loginState}>Continue as Committee Coordinator</Link>
+              <Link className="btn btn-outline-primary btn-lg" to="/login/administrator" state={loginState}>Continue as Administrator</Link>
             </div>
             <p className="text-secondary text-center mt-4 mb-0">
               New student? <Link to="/register">Create Account</Link>

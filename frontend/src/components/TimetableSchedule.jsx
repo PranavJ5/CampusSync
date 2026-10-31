@@ -17,8 +17,6 @@ export default function TimetableSchedule({ role }) {
   const endpoint = role === 'faculty' ? '/timetable/faculty/me' : '/timetable/student/me'
 
   const load = useCallback(async () => {
-    setLoading(true)
-    setError('')
     try {
       setTimetable((await api.get(endpoint)).data)
     } catch (requestError) {
@@ -28,7 +26,7 @@ export default function TimetableSchedule({ role }) {
     }
   }, [endpoint])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => { void Promise.resolve().then(load) }, [load])
 
   if (loading) return <LoadingSpinner label="Loading timetable..." />
   if (error) return <ErrorAlert message={error} onRetry={load} />

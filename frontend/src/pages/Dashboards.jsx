@@ -56,8 +56,6 @@ export default function Dashboard({ kind }) {
   const [loading, setLoading] = useState(true)
 
   const load = useCallback(async () => {
-    setLoading(true)
-    setError('')
     try {
       const response = await api.get(config.endpoint)
       setData(response.data || {})
@@ -68,7 +66,7 @@ export default function Dashboard({ kind }) {
     }
   }, [config.endpoint])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => { void Promise.resolve().then(load) }, [load])
 
   if (loading) return <LoadingSpinner label="Loading dashboard..." />
   if (kind === 'student') return <StudentDashboard data={data} error={error} onRetry={load} />
@@ -77,7 +75,7 @@ export default function Dashboard({ kind }) {
     <main className="container page-content dashboard-page">
       <div className="d-flex flex-column flex-md-row justify-content-between gap-3 mb-4">
         <div><p className="eyebrow dashboard-eyebrow">{kind === 'admin' ? 'Campus operations' : 'Committee workspace'}</p><h1 className="h2 mb-1">{config.title}</h1><p className="text-secondary mb-0">{config.subtitle}</p></div>
-        {kind === 'admin' ? <div className="d-flex flex-wrap gap-2 align-self-start"><Link className="btn btn-primary" to="/admin/events">Manage events</Link><Link className="btn btn-outline-primary" to="/admin/committees">Manage committees</Link><Link className="btn btn-outline-primary" to="/admin/timetable">Manage timetable</Link><Link className="btn btn-outline-primary" to="/admin/coordinators">Provision coordinators</Link><Link className="btn btn-outline-primary" to="/admin/faculty">Provision faculty</Link><Link className="btn btn-outline-primary" to="/admin/attendance">Attendance reports</Link></div> : kind === 'coordinator' ? <Link className="btn btn-primary align-self-start" to="/coordinator/events">Manage committee events</Link> : kind === 'student' && <div className="d-flex gap-2 align-self-start"><Link className="btn btn-primary" to="/events">Browse events</Link><Link className="btn btn-outline-primary" to="/my-registrations">My registrations</Link><Link className="btn btn-outline-secondary" to="/coordinator/events">Manage assigned committee</Link></div>}
+        {kind === 'admin' ? <div className="d-flex flex-wrap gap-2 align-self-start"><Link className="btn btn-primary" to="/admin/events">Manage events</Link><Link className="btn btn-outline-primary" to="/admin/committees">Manage committees</Link><Link className="btn btn-outline-primary" to="/admin/timetable">Manage timetable</Link><Link className="btn btn-outline-primary" to="/admin/coordinators">Provision coordinators</Link><Link className="btn btn-outline-primary" to="/admin/faculty">Provision faculty</Link><Link className="btn btn-outline-primary" to="/admin/attendance">Attendance reports</Link></div> : kind === 'coordinator' ? <Link className="btn btn-primary align-self-start" to="/coordinator/events">Manage committee events</Link> : kind === 'student' && <div className="d-flex gap-2 align-self-start"><Link className="btn btn-primary" to="/events">Browse events</Link><Link className="btn btn-outline-primary" to="/my-registrations">My registrations</Link></div>}
       </div>
       {error && <ErrorAlert message={error} onRetry={load} />}
       {!error && <>
@@ -102,7 +100,7 @@ function FacultyDashboard({ subjects, error, onRetry }) {
     <main className="container page-content dashboard-page">
       <div className="d-flex flex-column flex-md-row justify-content-between gap-3 mb-4">
         <div><p className="eyebrow dashboard-eyebrow">Teaching workspace</p><h1 className="h2 mb-1">Faculty dashboard</h1><p className="text-secondary mb-0">Your assigned subjects and attendance work.</p></div>
-        <div className="d-flex flex-wrap gap-2 align-self-start"><Link className="btn btn-primary" to="/faculty/attendance">Manage attendance</Link><Link className="btn btn-outline-secondary" to="/coordinator/events">Manage assigned committee</Link></div>
+        <div className="d-flex flex-wrap gap-2 align-self-start"><Link className="btn btn-primary" to="/faculty/attendance">Manage attendance</Link><Link className="btn btn-outline-secondary" to="/faculty/timetable">Schedule a lecture</Link></div>
       </div>
       {error ? <ErrorAlert message={error} onRetry={onRetry} /> : <>
         <section className="row g-3 mb-4" aria-label="Faculty summary">
@@ -238,7 +236,7 @@ function StudentAttendance() {
       setLoadingAttendance(false)
     }
   }, [])
-  useEffect(() => { loadAttendance() }, [loadAttendance])
+  useEffect(() => { void Promise.resolve().then(loadAttendance) }, [loadAttendance])
 
   return <section className="card border-0 shadow-sm" aria-labelledby="student-attendance-heading">
     <div className="card-body p-3 p-md-4">
