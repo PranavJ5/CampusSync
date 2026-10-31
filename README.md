@@ -3,7 +3,7 @@
 CampusSync is a Smart Student Information & Campus Activity Platform for SPIT Semester V Mini Project PR1. It gives students a single place to discover activities and manage registrations, while faculty coordinators and administrators manage committees, events, and institutional data.
 
 - Guide: Prof. Govind Gaundalkar
-- Team: Pranav Jadhav, Pritam Suresh Jadhav, and Sarthak Hade
+- Team: Pranav Jogi, Pritam Suresh Jadhav, and Sarthak Hade
 
 ## Backend Implementation Status
 
