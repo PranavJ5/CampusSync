@@ -13,12 +13,11 @@ export default function EventsPage() {
   const [sort, setSort] = useState('soonest')
 
   const load = useCallback(async () => {
-    setLoading(true); setError('')
     try { setEvents(asList((await api.get('/events')).data)) }
     catch (requestError) { setError(getErrorMessage(requestError, 'Published events could not be loaded.')) }
     finally { setLoading(false) }
   }, [])
-  useEffect(() => { load() }, [load])
+  useEffect(() => { void Promise.resolve().then(load) }, [load])
 
   const categories = useMemo(() => [...new Set(events.map((event) => event.category).filter(Boolean))], [events])
   const visibleEvents = useMemo(() => events

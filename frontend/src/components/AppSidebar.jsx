@@ -15,13 +15,12 @@ const navigationByRole = {
     { to: '/student', label: 'Overview', end: true },
     { to: '/events', label: 'Campus events' },
     { to: '/my-registrations', label: 'My registrations' },
-    { to: '/coordinator/events', label: 'Assigned committee' },
     { to: '/notifications', label: 'Notifications' },
   ],
   FACULTY: [
     { to: '/faculty', label: 'Overview', end: true },
     { to: '/faculty/attendance', label: 'Attendance' },
-    { to: '/coordinator/events', label: 'Committee events' },
+    { to: '/faculty/timetable', label: 'Schedule lecture' },
     { to: '/notifications', label: 'Notifications' },
   ],
   COMMITTEE_COORDINATOR: [

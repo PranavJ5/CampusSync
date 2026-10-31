@@ -10,14 +10,13 @@ export default function NotificationsPage({ onUnreadChange }) {
   const [filter, setFilter] = useState('all')
 
   const load = useCallback(async () => {
-    setLoading(true); setError('')
     try {
       const items = asList((await api.get('/notifications')).data).sort((a, b) => new Date(b.createdAt || b.sentAt || 0) - new Date(a.createdAt || a.sentAt || 0))
       setNotifications(items); onUnreadChange?.(items.filter((item) => !item.read && !item.isRead).length)
     } catch (requestError) { setError(getErrorMessage(requestError, 'Notifications could not be loaded.')) }
     finally { setLoading(false) }
   }, [onUnreadChange])
-  useEffect(() => { load() }, [load])
+  useEffect(() => { void Promise.resolve().then(load) }, [load])
 
   const visible = useMemo(() => notifications.filter((item) => filter === 'all' || (filter === 'unread' ? !(item.read || item.isRead) : (item.category || item.type) === filter)), [notifications, filter])
   const categories = useMemo(() => [...new Set(notifications.map((item) => item.category || item.type).filter(Boolean))], [notifications])

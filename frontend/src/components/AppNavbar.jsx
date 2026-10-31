@@ -25,15 +25,16 @@ export default function AppNavbar({ session, unreadCount = 0, onLogout }) {
         </button>
         <div className="collapse navbar-collapse" id="primary-nav">
           <div className="navbar-nav me-auto campus-nav__links">
-            <NavLink className={linkClass} to="/events">Events</NavLink>
-            {String(role).toUpperCase().includes('ADMINISTRATOR') && <NavLink className={linkClass} to="/admin/events">Manage events</NavLink>}
+            {String(role).toUpperCase() === 'STUDENT' && <NavLink className={linkClass} to="/events">Events</NavLink>}
+            {['ADMINISTRATOR', 'COMMITTEE_COORDINATOR'].includes(String(role).toUpperCase()) && <NavLink className={linkClass} to={String(role).toUpperCase() === 'ADMINISTRATOR' ? '/admin/events' : '/coordinator/events'}>Manage events</NavLink>}
             {String(role).toUpperCase().includes('ADMINISTRATOR') && <NavLink className={linkClass} to="/admin/committees">Manage committees</NavLink>}
             {String(role).toUpperCase().includes('ADMINISTRATOR') && <NavLink className={linkClass} to="/admin/attendance">Attendance reports</NavLink>}
             {String(role).toUpperCase().includes('ADMINISTRATOR') && <NavLink className={linkClass} to="/admin/faculty">Provision faculty</NavLink>}
             {String(role).toUpperCase().includes('FACULTY') && <NavLink className={linkClass} to="/faculty">Dashboard</NavLink>}
             {String(role).toUpperCase().includes('FACULTY') && <NavLink className={linkClass} to="/faculty/attendance">Attendance</NavLink>}
+            {String(role).toUpperCase().includes('FACULTY') && <NavLink className={linkClass} to="/faculty/timetable">Schedule lecture</NavLink>}
             {String(role).toUpperCase().includes('STUDENT') && <NavLink className={linkClass} to="/my-registrations">My registrations</NavLink>}
-            {['COMMITTEE_COORDINATOR', 'FACULTY', 'STUDENT'].includes(String(role).toUpperCase()) && <NavLink className={linkClass} to="/coordinator/events">Assigned committee</NavLink>}
+            {String(role).toUpperCase() === 'COMMITTEE_COORDINATOR' && <NavLink className={linkClass} to="/coordinator/events">Assigned committee</NavLink>}
             <NavLink className={linkClass} to="/notifications">
               Notifications {unreadCount > 0 && <span className="badge rounded-pill text-bg-warning ms-1">{unreadCount}</span>}
             </NavLink>

@@ -39,8 +39,6 @@ export default function FacultyAttendancePage() {
   const selectedTimetableEntry = timetableEntries.find((entry) => String(entry.id) === timetableEntryId)
 
   const loadSubjects = useCallback(async () => {
-    setLoading(true)
-    setError('')
     try {
       const response = await api.get('/attendance/faculty/subjects')
       const list = asList(response.data)
@@ -85,12 +83,8 @@ export default function FacultyAttendancePage() {
 
   const loadRoster = useCallback(async () => {
     if (!sessionId && (!selectedSubject?.semester || !selectedSubject?.division?.trim())) {
-      setRoster([])
-      setAttendance({})
-      setCorrections([])
       return
     }
-    setRosterLoading(true)
     try {
       const response = sessionId
         ? await Promise.all([
@@ -112,12 +106,12 @@ export default function FacultyAttendancePage() {
     }
   }, [subjectId, sessionId, selectedSubject])
 
-  useEffect(() => { loadSubjects(); loadTimetable() }, [loadSubjects, loadTimetable])
+  useEffect(() => { void Promise.resolve().then(() => { loadSubjects(); loadTimetable() }) }, [loadSubjects, loadTimetable])
   useEffect(() => {
-    if (subjectId) loadSessions()
+    if (subjectId) void Promise.resolve().then(loadSessions)
   }, [subjectId, timetableEntryId, loadSessions])
   useEffect(() => {
-    if (subjectId) loadRoster()
+    if (subjectId) void Promise.resolve().then(loadRoster)
   }, [sessionId, subjectId, timetableEntryId, loadRoster])
 
   const createSession = async (event) => {

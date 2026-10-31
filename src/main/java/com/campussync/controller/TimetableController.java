@@ -3,6 +3,7 @@ package com.campussync.controller;
 import com.campussync.dto.TimetableDashboardResponse;
 import com.campussync.dto.TimetableEntryRequest;
 import com.campussync.dto.TimetableEntryResponse;
+import com.campussync.dto.SubjectResponse;
 import com.campussync.service.TimetableService;
 import jakarta.validation.Valid;
 import java.net.URI;
@@ -35,6 +36,20 @@ public class TimetableController {
     @GetMapping("/faculty/me")
     public TimetableDashboardResponse facultyDashboard(Principal principal) {
         return timetables.facultyDashboard(principal);
+    }
+
+    @GetMapping("/faculty/subjects")
+    public List<SubjectResponse> facultySubjects(Principal principal) {
+        return timetables.facultySubjects(principal);
+    }
+
+    @PostMapping("/faculty")
+    public ResponseEntity<TimetableEntryResponse> createFacultyLecture(
+            @Valid @RequestBody TimetableEntryRequest request, Principal principal) {
+        TimetableEntryResponse response = timetables.createFacultyLecture(request, principal);
+        URI location = ServletUriComponentsBuilder.fromCurrentRequest().path("/{id}")
+                .buildAndExpand(response.id()).toUri();
+        return ResponseEntity.created(location).body(response);
     }
 
     @GetMapping("/management")

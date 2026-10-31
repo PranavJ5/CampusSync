@@ -31,7 +31,10 @@ export default function LoginPage({ onAuthenticated, selectedRole }) {
       }
       const session = saveSession(response.data, form.remember)
       onAuthenticated(session)
-      navigate(location.state?.from?.pathname || dashboardPath(session.user.role), { replace: true })
+      const destination = location.state?.from
+        ? `${location.state.from.pathname || ''}${location.state.from.search || ''}${location.state.from.hash || ''}`
+        : dashboardPath(session.user.role)
+      navigate(destination || dashboardPath(session.user.role), { replace: true })
     } catch (requestError) {
       setError(getErrorMessage(requestError, 'Unable to sign in. Check your details and try again.'))
     } finally {

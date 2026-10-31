@@ -64,8 +64,6 @@ export default function CommitteeManagementPage() {
   }, [])
 
   const load = useCallback(async (preferredId = '') => {
-    setLoading(true)
-    setError('')
     try {
       const [committeeResponse, departmentResponse, facultyResponse, studentList] = await Promise.all([
         api.get('/committees'),
@@ -95,7 +93,7 @@ export default function CommitteeManagementPage() {
     }
   }, [loadCommitteeMembers])
 
-  useEffect(() => { load('') }, [load])
+  useEffect(() => { void Promise.resolve().then(() => load('')) }, [load])
 
   const selectedCommittee = committees.find((committee) => String(committee.id) === selectedId)
   const facultyById = useMemo(() => new Map(faculty.map((item) => [String(item.id), item])), [faculty])

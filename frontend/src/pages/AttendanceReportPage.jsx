@@ -9,8 +9,6 @@ export default function AttendanceReportPage() {
   const [error, setError] = useState('')
 
   const load = useCallback(async () => {
-    setLoading(true)
-    setError('')
     try {
       setReport((await api.get('/attendance/admin/report')).data)
     } catch (requestError) {
@@ -19,7 +17,7 @@ export default function AttendanceReportPage() {
       setLoading(false)
     }
   }, [])
-  useEffect(() => { load() }, [load])
+  useEffect(() => { void Promise.resolve().then(load) }, [load])
 
   if (loading) return <LoadingSpinner label="Loading attendance report..." />
   return <main className="container page-content">

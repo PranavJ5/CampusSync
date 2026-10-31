@@ -87,35 +87,33 @@ class AuthorizationServiceTest {
         assertEquals(HttpStatus.FORBIDDEN, failure.getStatusCode());
     }
 
-    @Test void assignedStudentCoordinatorCanManageOnlyTheirCommittee() {
+    @Test void studentCannotManageCommitteeEventsEvenWithCoordinatorMembership() {
         User student = user(4L, "student", "STUDENT");
-        CommitteeMember membership = membership(student, "COORDINATOR", "ACTIVE");
         when(users.findByUsername("student")).thenReturn(Optional.of(student));
-        when(memberships.findByCommitteeId(8L)).thenReturn(List.of(membership));
 
-        User authorized = new AuthorizationService(users, memberships)
-                .requireAdministratorOrCommitteeCoordinator(() -> "student", 8L);
+        var failure = assertThrows(ResponseStatusException.class,
+                () -> new AuthorizationService(users, memberships)
+                        .requireAdministratorOrCommitteeCoordinator(() -> "student", 8L));
 
-        assertEquals(student, authorized);
+        assertEquals(HttpStatus.FORBIDDEN, failure.getStatusCode());
+        verify(memberships, never()).findByCommitteeId(8L);
     }
 
-    @Test void assignedFacultyCoordinatorCanManageTheirCommittee() {
+    @Test void facultyCannotManageCommitteeEventsEvenWithCoordinatorMembership() {
         User faculty = user(4L, "faculty", "FACULTY");
-        CommitteeMember membership = membership(faculty, "COORDINATOR", "ACTIVE");
         when(users.findByUsername("faculty")).thenReturn(Optional.of(faculty));
-        when(memberships.findByCommitteeId(8L)).thenReturn(List.of(membership));
 
-        User authorized = new AuthorizationService(users, memberships)
-                .requireAdministratorOrCommitteeCoordinator(() -> "faculty", 8L);
+        var failure = assertThrows(ResponseStatusException.class,
+                () -> new AuthorizationService(users, memberships)
+                        .requireAdministratorOrCommitteeCoordinator(() -> "faculty", 8L));
 
-        assertEquals(faculty, authorized);
+        assertEquals(HttpStatus.FORBIDDEN, failure.getStatusCode());
+        verify(memberships, never()).findByCommitteeId(8L);
     }
 
     @Test void unassignedStudentCannotManageCommittee() {
         User student = user(4L, "student", "STUDENT");
         when(users.findByUsername("student")).thenReturn(Optional.of(student));
-        when(memberships.findByCommitteeId(8L)).thenReturn(List.of());
-
         var failure = assertThrows(ResponseStatusException.class,
                 () -> new AuthorizationService(users, memberships).requireAdministratorOrCommitteeCoordinator(
                         () -> "student", 8L));
@@ -126,8 +124,6 @@ class AuthorizationServiceTest {
     @Test void assignedStudentCoordinatorCannotManageAnotherCommittee() {
         User student = user(4L, "student", "STUDENT");
         when(users.findByUsername("student")).thenReturn(Optional.of(student));
-        when(memberships.findByCommitteeId(8L)).thenReturn(List.of());
-
         var failure = assertThrows(ResponseStatusException.class,
                 () -> new AuthorizationService(users, memberships)
                         .requireAdministratorOrCommitteeCoordinator(() -> "student", 8L));

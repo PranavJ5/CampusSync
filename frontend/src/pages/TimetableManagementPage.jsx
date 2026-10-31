@@ -42,8 +42,6 @@ export default function TimetableManagementPage() {
   const [batchNotice, setBatchNotice] = useState('')
 
   const load = useCallback(async () => {
-    setLoading(true)
-    setError('')
     try {
       const [entryResponse, departmentResponse, subjectResponse, facultyResponse] = await Promise.all([
         api.get('/timetable/management'),
@@ -62,7 +60,7 @@ export default function TimetableManagementPage() {
     }
   }, [])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => { void Promise.resolve().then(load) }, [load])
 
   const filteredSubjects = useMemo(() => subjects
     .filter((subject) => subject.facultyId)
@@ -273,7 +271,7 @@ export default function TimetableManagementPage() {
               return <option key={subject.id} value={subject.id}>{subject.code} · {subject.name} · {assignedFaculty?.fullName || `Faculty profile ${subject.facultyId}`} (ID {subject.facultyId}) · Semester {subject.semester ?? '—'} · Division {subject.division || '—'}</option>
             })}</select>{!filteredSubjects.length && <p className="small text-warning mt-2 mb-0">No faculty-assigned subjects are available for this department. Check existing subject allocations before adding entries.</p>}</div>}
             <div className="col-6 col-md-3"><label className="form-label" htmlFor="timetable-day">Day</label><select id="timetable-day" className="form-select" name="dayOfWeek" value={form.dayOfWeek} onChange={changeField}>{weekdays.map((day) => <option key={day} value={day}>{day.charAt(0) + day.slice(1).toLowerCase()}</option>)}</select></div>
-            <div className="col-6 col-md-3"><label className="form-label" htmlFor="timetable-venue">Venue</label><input id="timetable-venue" className="form-control" name="venue" value={form.venue} onChange={changeField} maxLength="255" /></div>
+            <div className="col-6 col-md-3"><label className="form-label" htmlFor="timetable-venue">Room / venue</label><input id="timetable-venue" className="form-control" name="venue" value={form.venue} onChange={changeField} maxLength="255" required={form.classType !== 'BREAK'} /></div>
             <div className="col-6 col-md-3"><label className="form-label" htmlFor="timetable-start">Start time</label><input id="timetable-start" className="form-control" name="startTime" type="time" value={form.startTime} onChange={changeField} required /></div>
             <div className="col-6 col-md-3"><label className="form-label" htmlFor="timetable-end">End time</label><input id="timetable-end" className="form-control" name="endTime" type="time" value={form.endTime} onChange={changeField} required /></div>
             <div className="col-6 col-md-3"><label className="form-label" htmlFor="timetable-year">Academic year</label><input id="timetable-year" className="form-control" name="academicYear" value={form.academicYear} onChange={changeField} maxLength="20" required /></div>
