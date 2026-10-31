@@ -3,6 +3,7 @@ package com.campussync.controller;
 import com.campussync.dto.StudentRequest;
 import com.campussync.dto.StudentResponse;
 import com.campussync.dto.StudentContactRequest;
+import com.campussync.dto.StudentLabBatchRequest;
 import com.campussync.service.StudentService;
 import jakarta.validation.Valid;
 import java.net.URI;
@@ -56,5 +57,11 @@ public class StudentController {
     @PutMapping("/{id}")
     public StudentResponse update(@PathVariable Long id, @Valid @RequestBody StudentRequest request, Principal principal) {
         return students.update(id, request, principal);
+    }
+
+    @org.springframework.web.bind.annotation.PatchMapping("/{id}/lab-batch")
+    public StudentResponse updateLabBatch(@PathVariable Long id,
+            @Valid @RequestBody StudentLabBatchRequest request, Principal principal) {
+        return students.updateLabBatch(id, request, principal);
     }
 }

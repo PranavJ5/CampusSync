@@ -16,13 +16,18 @@ export function getToken() {
 export function saveSession(payload, remember = true) {
   const token = payload?.token || payload?.accessToken || payload?.jwt
   if (!token) throw new Error('The login response did not include an access token.')
+  const role = payload?.user?.role || payload?.role || payload?.userRole || payload?.roles?.[0]
+  if (typeof role !== 'string' || !role.trim()) {
+    throw new Error('The login response did not include the authenticated user role.')
+  }
 
   const session = {
     token,
-    user: payload.user || {
-      name: payload.name || payload.fullName || payload.email || 'CampusSync user',
-      email: payload.email,
-      role: payload.role || payload.userRole || payload.roles?.[0] || 'STUDENT',
+    user: {
+      ...payload.user,
+      name: payload.user?.name || payload.name || payload.fullName || payload.user?.email || payload.email || 'CampusSync user',
+      email: payload.user?.email || payload.email,
+      role: role.trim(),
     },
   }
   const storage = remember ? localStorage : sessionStorage
@@ -43,7 +48,8 @@ export function clearSession() {
 
 export function dashboardPath(role) {
   const normalized = String(role || '').toUpperCase()
-  if (normalized.includes('ADMIN')) return '/admin'
-  if (normalized.includes('COORDINATOR') || normalized.includes('FACULTY')) return '/coordinator'
+  if (normalized === 'ADMINISTRATOR') return '/admin'
+  if (normalized === 'FACULTY') return '/faculty'
+  if (normalized === 'COMMITTEE_COORDINATOR') return '/coordinator'
   return '/student'
 }

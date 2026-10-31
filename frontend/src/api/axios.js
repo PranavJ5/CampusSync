@@ -6,9 +6,12 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 })
 
+const publicEndpoints = new Set(['/auth/login', '/auth/register', '/public/departments'])
+
 api.interceptors.request.use((config) => {
   const token = getToken()
-  if (token) config.headers.Authorization = `Bearer ${token}`
+  const requestPath = config.url?.split('?')[0]
+  if (token && !publicEndpoints.has(requestPath)) config.headers.Authorization = `Bearer ${token}`
   return config
 })
 

@@ -13,6 +13,6 @@ public record CommitteeRequest(@jakarta.validation.constraints.Positive Long dep
                                @NotBlank @Size(max = 50) String status,
                                @NotBlank @Size(max = 50) String category,
                                @Min(1800) @Max(9999) Integer establishedYear,
-                               @jakarta.validation.constraints.Positive Long facultyCoordinatorId,
+                               @NotNull @jakarta.validation.constraints.Positive Long facultyCoordinatorId,
                                @Size(max = 500) String logoPath,
                                Boolean active) { }

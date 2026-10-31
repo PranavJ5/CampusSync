@@ -2,6 +2,8 @@ package com.campussync.controller;
 
 import com.campussync.dto.FacultyRequest;
 import com.campussync.dto.FacultyResponse;
+import com.campussync.dto.FacultyAccountProvisionRequest;
+import com.campussync.service.FacultyAccountProvisioningService;
 import com.campussync.service.FacultyService;
 import jakarta.validation.Valid;
 import java.net.URI;
@@ -21,10 +23,23 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 @RequestMapping("/api/faculty")
 public class FacultyController {
     private final FacultyService faculty;
-    public FacultyController(FacultyService faculty) { this.faculty = faculty; }
+    private final FacultyAccountProvisioningService provisioning;
+    public FacultyController(FacultyService faculty, FacultyAccountProvisioningService provisioning) {
+        this.faculty = faculty;
+        this.provisioning = provisioning;
+    }
 
     @GetMapping
     public List<FacultyResponse> list(Principal principal) { return faculty.list(principal); }
+
+    @PostMapping("/provision")
+    public ResponseEntity<FacultyResponse> provision(
+            @Valid @RequestBody FacultyAccountProvisionRequest request, Principal principal) {
+        FacultyResponse response = provisioning.create(request, principal);
+        URI location = ServletUriComponentsBuilder.fromCurrentContextPath().path("/api/faculty/{id}")
+                .buildAndExpand(response.id()).toUri();
+        return ResponseEntity.created(location).body(response);
+    }
 
     @GetMapping("/{id}")
     public FacultyResponse get(@PathVariable Long id, Principal principal) { return faculty.get(id, principal); }

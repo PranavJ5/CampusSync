@@ -23,4 +23,5 @@ public record StudentRequest(
         @Email @Size(max = 255) String alternateEmail,
         @PastOrPresent LocalDate dateOfBirth,
         @Size(max = 30) String gender,
-        @Size(max = 500) String photoPath) { }
+        @Size(max = 500) String photoPath,
+        @Size(max = 20) String division) { }

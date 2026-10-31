@@ -42,7 +42,7 @@ public class SubjectController {
 
     @PostMapping
     public ResponseEntity<SubjectResponse> create(@Valid @RequestBody SubjectRequest request, Principal principal) {
-        authorization.requireRole(principal, "ADMIN");
+        authorization.requireRole(principal, "ADMINISTRATOR");
         SubjectResponse response = subjects.create(request);
         URI location = ServletUriComponentsBuilder.fromCurrentRequest().path("/{id}").buildAndExpand(response.id()).toUri();
         return ResponseEntity.created(location).body(response);
@@ -50,7 +50,7 @@ public class SubjectController {
 
     @PutMapping("/{id}")
     public SubjectResponse update(@PathVariable Long id, @Valid @RequestBody SubjectRequest request, Principal principal) {
-        authorization.requireRole(principal, "ADMIN");
+        authorization.requireRole(principal, "ADMINISTRATOR");
         return subjects.update(id, request);
     }
 }

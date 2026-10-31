@@ -5,6 +5,7 @@ import com.campussync.entity.EventRegistration;
 import com.campussync.entity.EventRegistrationId;
 import com.campussync.entity.User;
 import com.campussync.dto.RegistrationResponse;
+import com.campussync.dto.AdministratorEventRegistrationResponse;
 import com.campussync.dto.AttendanceBatchRequest;
 import com.campussync.repository.EventRegistrationRepository;
 import com.campussync.repository.EventRepository;
@@ -86,11 +87,32 @@ public class EventRegistrationService {
     }
 
     @Transactional(readOnly = true)
+    public List<RegistrationResponse> myRegistrations(Long userId) {
+        return registrations.findByUserIdOrderByRegisteredAtDesc(userId).stream()
+                .map(RegistrationResponse::from).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public RegistrationResponse myRegistration(Long eventId, Long userId) {
+        return registrations.findByEventIdAndUserId(eventId, userId)
+                .map(RegistrationResponse::from)
+                .orElseThrow(() -> new NoSuchElementException("Registration not found."));
+    }
+
+    @Transactional(readOnly = true)
     public List<RegistrationResponse> participants(Long eventId, Principal principal) {
         Event event = events.findById(eventId).orElseThrow(() -> new NoSuchElementException("Event not found."));
         authorization.requireAdministratorOrCommitteeCoordinator(principal, event.getCommittee().getId());
         return registrations.findByEventIdAndRegistrationStatusOrderByRegisteredAtAsc(eventId, "CONFIRMED").stream()
                 .map(RegistrationResponse::from).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<AdministratorEventRegistrationResponse> administratorRegistrations(Long eventId, Principal principal) {
+        authorization.requireRole(principal, "ADMINISTRATOR");
+        events.findById(eventId).orElseThrow(() -> new NoSuchElementException("Event not found."));
+        return registrations.findByEventIdOrderByRegisteredAtAsc(eventId).stream()
+                .map(AdministratorEventRegistrationResponse::from).toList();
     }
 
     @Transactional
@@ -99,7 +121,7 @@ public class EventRegistrationService {
         User actor = authorization.requireAdministratorOrCommitteeCoordinator(principal, event.getCommittee().getId());
         if ("CANCELLED".equalsIgnoreCase(event.getStatus())) throw new IllegalStateException("Attendance cannot be marked for a cancelled event.");
         if ("COMPLETED".equalsIgnoreCase(event.getStatus())
-                && (actor.getRole() == null || !"ADMIN".equalsIgnoreCase(actor.getRole().getCode())))
+                && (actor.getRole() == null || !"ADMINISTRATOR".equalsIgnoreCase(actor.getRole().getCode())))
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only an administrator may correct attendance after completion.");
         if (LocalDate.now().isBefore(event.getStartsAt().toLocalDate()))
             throw new IllegalStateException("Attendance can only be marked on or after the event start date.");
@@ -122,7 +144,7 @@ public class EventRegistrationService {
         if ("CANCELLED".equalsIgnoreCase(event.getStatus()))
             throw new IllegalStateException("Attendance cannot be marked for a cancelled event.");
         if ("COMPLETED".equalsIgnoreCase(event.getStatus())
-                && (actor.getRole() == null || !"ADMIN".equalsIgnoreCase(actor.getRole().getCode())))
+                && (actor.getRole() == null || !"ADMINISTRATOR".equalsIgnoreCase(actor.getRole().getCode())))
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only an administrator may correct attendance after completion.");
         if (LocalDate.now().isBefore(event.getStartsAt().toLocalDate()))
             throw new IllegalStateException("Attendance can only be marked on or after the event start date.");

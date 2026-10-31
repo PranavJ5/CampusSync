@@ -13,4 +13,6 @@ public interface FacultyRepository extends JpaRepository<Faculty, Long> {
     List<Faculty> findByDepartmentId(Long departmentId);
 
     Optional<Faculty> findByEmployeeNumber(String employeeNumber);
+
+    boolean existsByEmployeeNumberIgnoreCase(String employeeNumber);
 }

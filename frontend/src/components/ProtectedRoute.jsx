@@ -6,7 +6,7 @@ export default function ProtectedRoute({ session, allowedRoles, children }) {
   if (!session?.token) return <Navigate to="/login" replace state={{ from: location }} />
 
   const role = String(session.user?.role || '').toUpperCase()
-  if (allowedRoles && !allowedRoles.some((allowed) => role.includes(allowed))) {
+  if (allowedRoles && !allowedRoles.includes(role)) {
     return <Navigate to={dashboardPath(role)} replace />
   }
   return children

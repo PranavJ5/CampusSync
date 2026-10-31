@@ -34,6 +34,12 @@ public class EventRegistrationController {
         return ResponseEntity.created(location).body(result);
     }
 
+    @GetMapping("/me")
+    public RegistrationResponse myRegistration(@PathVariable Long eventId, Principal principal) {
+        Long userId = authorization.requireRole(principal, "STUDENT").getId();
+        return service.myRegistration(eventId, userId);
+    }
+
     @DeleteMapping
     public RegistrationResponse cancel(@PathVariable Long eventId, Principal principal) {
         return RegistrationResponse.from(service.cancel(eventId, authorization.requireRole(principal, "STUDENT").getId()));

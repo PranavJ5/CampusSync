@@ -3,6 +3,7 @@ package com.campussync.service;
 import com.campussync.dto.StudentRequest;
 import com.campussync.dto.StudentResponse;
 import com.campussync.dto.StudentContactRequest;
+import com.campussync.dto.StudentLabBatchRequest;
 import com.campussync.entity.Student;
 import com.campussync.entity.User;
 import com.campussync.repository.DepartmentRepository;
@@ -39,7 +40,7 @@ public class StudentService {
     public Page<StudentResponse> list(Principal principal, Pageable pageable, Long departmentId,
                                       Integer semester, Integer admissionYear, String search) {
         User actor = authorization.authenticatedUser(principal);
-        boolean admin = actor.getRole() != null && "ADMIN".equalsIgnoreCase(actor.getRole().getCode());
+        boolean admin = actor.getRole() != null && "ADMINISTRATOR".equalsIgnoreCase(actor.getRole().getCode());
         Long scopedDepartment = departmentId;
         if (!admin) {
             if (actor.getRole() == null || !"FACULTY".equalsIgnoreCase(actor.getRole().getCode()))
@@ -97,7 +98,7 @@ public class StudentService {
 
     @Transactional
     public StudentResponse create(StudentRequest request, Principal principal) {
-        authorization.requireRole(principal, "ADMIN");
+        authorization.requireRole(principal, "ADMINISTRATOR");
         User user = findStudentUser(request.userId());
         if (students.findByUserId(user.getId()).isPresent())
             throw new ResponseStatusException(HttpStatus.CONFLICT, "A student profile already exists for this account.");
@@ -108,7 +109,7 @@ public class StudentService {
 
     @Transactional
     public StudentResponse update(Long id, StudentRequest request, Principal principal) {
-        authorization.requireRole(principal, "ADMIN");
+        authorization.requireRole(principal, "ADMINISTRATOR");
         Student student = find(id);
         User user = findStudentUser(request.userId());
         if (!student.getUser().getId().equals(user.getId()) && students.findByUserId(user.getId()).isPresent())
@@ -117,8 +118,17 @@ public class StudentService {
         return StudentResponse.from(students.saveAndFlush(student));
     }
 
+    @Transactional
+    public StudentResponse updateLabBatch(Long id, StudentLabBatchRequest request, Principal principal) {
+        authorization.requireRole(principal, "ADMINISTRATOR");
+        Student student = find(id);
+        student.setLabBatch(request.labBatch() == null
+                ? null : request.labBatch().toUpperCase(java.util.Locale.ROOT));
+        return StudentResponse.from(students.saveAndFlush(student));
+    }
+
     private void requireSelfOrAdmin(User actor, Student profile) {
-        boolean admin = actor.getRole() != null && "ADMIN".equalsIgnoreCase(actor.getRole().getCode());
+        boolean admin = actor.getRole() != null && "ADMINISTRATOR".equalsIgnoreCase(actor.getRole().getCode());
         boolean self = actor.getRole() != null && "STUDENT".equalsIgnoreCase(actor.getRole().getCode())
                 && actor.getId().equals(profile.getUser().getId());
         if (!admin && !self) throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Student profile access is restricted.");
@@ -143,6 +153,8 @@ public class StudentService {
         target.setAdmissionDate(request.admissionDate());
         target.setAcademicStatus(request.academicStatus().trim());
         target.setCurrentSemester(request.currentSemester()); target.setAdmissionYear(request.admissionYear());
+        target.setDivision(request.division() == null || request.division().isBlank()
+                ? null : request.division().trim());
         target.setContactNumber(request.contactNumber()); target.setAlternateEmail(request.alternateEmail());
         target.setDateOfBirth(request.dateOfBirth()); target.setGender(request.gender()); target.setPhotoPath(request.photoPath());
     }

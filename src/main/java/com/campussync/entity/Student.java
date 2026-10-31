@@ -26,7 +26,11 @@ import lombok.Setter;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "student", indexes = @Index(name = "idx_student_department_id", columnList = "department_id"))
+@Table(name = "student", indexes = {
+        @Index(name = "idx_student_department_id", columnList = "department_id"),
+        @Index(name = "idx_student_attendance_group",
+                columnList = "department_id, current_semester, division, lab_batch, academic_status")
+})
 @Getter
 @Setter
 @NoArgsConstructor
@@ -61,6 +65,14 @@ public class Student {
     @jakarta.validation.constraints.Max(8)
     @Column(name = "current_semester")
     private Integer currentSemester;
+
+    @Size(max = 20)
+    @Column(name = "division", length = 20)
+    private String division;
+
+    @Size(max = 10)
+    @Column(name = "lab_batch", length = 10)
+    private String labBatch;
 
     @Min(1900) @Max(2100)
     @Column(name = "admission_year")

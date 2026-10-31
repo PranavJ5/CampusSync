@@ -15,6 +15,7 @@ import com.campussync.entity.CommitteeMember;
 import com.campussync.entity.Faculty;
 import com.campussync.entity.Role;
 import com.campussync.entity.User;
+import com.campussync.entity.Student;
 import com.campussync.dto.CommitteeMemberRequest;
 import com.campussync.repository.CommitteeRepository;
 import com.campussync.repository.CommitteeMemberRepository;
@@ -22,6 +23,7 @@ import com.campussync.repository.DepartmentRepository;
 import com.campussync.repository.UserRepository;
 import com.campussync.repository.FacultyRepository;
 import java.util.Optional;
+import java.util.List;
 import java.time.LocalDate;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -39,11 +41,18 @@ class CommitteeServiceTest {
 
     @Test void createsCommitteeWithDepartmentAndNormalizedValues() {
         Department department = new Department(); department.setId(3L);
+        Faculty coordinator = facultyProfile(6L, 60L);
         when(departments.findById(3L)).thenReturn(Optional.of(department));
+        when(faculty.findById(6L)).thenReturn(Optional.of(coordinator));
+        when(memberships.findFirstByCommitteeIdAndUserIdAndMembershipStatusIgnoreCase(
+                org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.anyLong(), eq("ACTIVE")))
+                .thenReturn(Optional.empty());
         when(committees.saveAndFlush(any(Committee.class))).thenAnswer(call -> {
             Committee committee = call.getArgument(0); committee.setId(9L); return committee;
         });
-        var request = new CommitteeRequest(3L, " TECH ", " Technical ", " Events ", " ACTIVE ", "TECHNICAL", null, null, null, null);
+        when(memberships.saveAndFlush(any(CommitteeMember.class))).thenAnswer(call -> call.getArgument(0));
+        var request = new CommitteeRequest(
+                3L, " TECH ", " Technical ", " Events ", " ACTIVE ", "TECHNICAL", null, 6L, null, true);
 
         var result = service().create(request);
 
@@ -51,6 +60,48 @@ class CommitteeServiceTest {
         assertEquals("TECH", result.code());
         assertEquals("Technical", result.name());
         assertEquals("Events", result.description());
+        verify(memberships).saveAndFlush(any(CommitteeMember.class));
+    }
+
+    @Test void manageableCommitteeOptionsAreScopedToActiveCoordinatorAssignments() {
+        User coordinator = new User();
+        coordinator.setId(20L);
+        Role role = new Role();
+        role.setCode("COMMITTEE_COORDINATOR");
+        coordinator.setRole(role);
+        Committee assigned = new Committee();
+        assigned.setId(5L);
+        assigned.setName("Sports Committee");
+        when(authorization.authenticatedUser(any())).thenReturn(coordinator);
+        when(authorization.coordinatorCommitteeIds(any())).thenReturn(List.of(5L));
+        when(committees.findByIdInAndActiveTrueAndStatusIgnoreCaseOrderByNameAsc(List.of(5L), "ACTIVE"))
+                .thenReturn(List.of(assigned));
+
+        var result = service().manageable(() -> "coordinator");
+
+        assertEquals(List.of(5L), result.stream().map(item -> item.id()).toList());
+        verify(committees).findByIdInAndActiveTrueAndStatusIgnoreCaseOrderByNameAsc(List.of(5L), "ACTIVE");
+        verify(committees, never()).findAll();
+    }
+
+    @Test void administratorCommitteeOptionsIncludeOnlyActiveCommittees() {
+        User administrator = new User();
+        Role role = new Role();
+        role.setCode("ADMINISTRATOR");
+        administrator.setRole(role);
+        Committee active = new Committee();
+        active.setId(6L);
+        active.setName("Active Committee");
+        active.setActive(true);
+        when(authorization.authenticatedUser(any())).thenReturn(administrator);
+        when(committees.findByActiveTrueAndStatusIgnoreCaseOrderByNameAsc("ACTIVE"))
+                .thenReturn(List.of(active));
+
+        var result = service().manageable(() -> "administrator");
+
+        assertEquals(List.of(6L), result.stream().map(committeeResponse -> committeeResponse.id()).toList());
+        verify(committees).findByActiveTrueAndStatusIgnoreCaseOrderByNameAsc("ACTIVE");
+        verify(committees, never()).findAll();
     }
 
     @Test void removingMemberClosesHistoryRowInsteadOfDeletingIt() {
@@ -72,8 +123,8 @@ class CommitteeServiceTest {
     }
 
     @Test void rejectsDuplicateActiveMemberBeforeInsert() {
-        Committee committee = new Committee(); committee.setId(5L);
-        User user = new User(); user.setId(7L); Role role = new Role(); role.setCode("STUDENT"); user.setRole(role);
+        Committee committee = activeCommittee(5L);
+        User user = studentUser(7L);
         when(committees.findByIdForUpdate(5L)).thenReturn(Optional.of(committee));
         when(users.findById(7L)).thenReturn(Optional.of(user));
         when(memberships.existsByCommitteeIdAndUserIdAndMembershipStatusIgnoreCase(5L, 7L, "ACTIVE")).thenReturn(true);
@@ -84,8 +135,8 @@ class CommitteeServiceTest {
     }
 
     @Test void rejoiningCreatesAnotherMembershipPeriodAfterThePriorOneWasClosed() {
-        Committee committee = new Committee(); committee.setId(5L);
-        User user = new User(); user.setId(7L); Role role = new Role(); role.setCode("STUDENT"); user.setRole(role);
+        Committee committee = activeCommittee(5L);
+        User user = studentUser(7L);
         when(committees.findByIdForUpdate(5L)).thenReturn(Optional.of(committee));
         when(users.findById(7L)).thenReturn(Optional.of(user));
         when(memberships.existsByCommitteeIdAndUserIdAndMembershipStatusIgnoreCase(5L, 7L, "ACTIVE")).thenReturn(false);
@@ -101,9 +152,9 @@ class CommitteeServiceTest {
     }
 
     @Test void scopedCoordinatorCannotGrantCoordinatorPrivileges() {
-        Committee committee = new Committee(); committee.setId(5L);
+        Committee committee = activeCommittee(5L);
         User actor = new User(); actor.setId(11L); Role actorRole = new Role(); actorRole.setCode("STUDENT"); actor.setRole(actorRole);
-        User target = new User(); target.setId(7L); Role targetRole = new Role(); targetRole.setCode("STUDENT"); target.setRole(targetRole);
+        User target = studentUser(7L);
         when(committees.findByIdForUpdate(5L)).thenReturn(Optional.of(committee));
         when(authorization.requireAdministratorOrCommitteeCoordinator(any(), eq(5L))).thenReturn(actor);
         when(users.findById(7L)).thenReturn(Optional.of(target));
@@ -111,6 +162,53 @@ class CommitteeServiceTest {
         assertThrows(org.springframework.web.server.ResponseStatusException.class,
                 () -> service().addMember(5L, new CommitteeMemberRequest(7L, "COORDINATOR"), () -> "coordinator"));
         verify(memberships, never()).saveAndFlush(any(CommitteeMember.class));
+    }
+
+    @Test void administratorCanAssignExistingStudentAsScopedCoordinatorWithoutChangingTheirAccountRole() {
+        Committee committee = activeCommittee(5L);
+        User actor = new User(); actor.setId(11L); Role adminRole = new Role(); adminRole.setCode("ADMINISTRATOR"); actor.setRole(adminRole);
+        User student = studentUser(7L);
+        when(committees.findByIdForUpdate(5L)).thenReturn(Optional.of(committee));
+        when(authorization.requireAdministratorOrCommitteeCoordinator(any(), eq(5L))).thenReturn(actor);
+        when(users.findById(7L)).thenReturn(Optional.of(student));
+        when(memberships.existsByCommitteeIdAndUserIdAndMembershipStatusIgnoreCase(5L, 7L, "ACTIVE"))
+                .thenReturn(false);
+        when(memberships.saveAndFlush(any(CommitteeMember.class))).thenAnswer(call -> {
+            CommitteeMember membership = call.getArgument(0); membership.setId(30L); return membership;
+        });
+
+        var response = service().addMember(
+                5L, new CommitteeMemberRequest(7L, "COORDINATOR"), () -> "admin");
+
+        assertEquals("STUDENT", student.getRole().getCode());
+        assertEquals("COORDINATOR", response.memberRole());
+        assertEquals(true, response.active());
+    }
+
+    @Test void rejectsAddingMembersToInactiveCommittees() {
+        Committee committee = new Committee();
+        committee.setId(5L);
+        committee.setActive(false);
+        committee.setStatus("INACTIVE");
+        when(committees.findByIdForUpdate(5L)).thenReturn(Optional.of(committee));
+        when(authorization.requireAdministratorOrCommitteeCoordinator(any(), eq(5L)))
+                .thenReturn(new User());
+
+        assertThrows(org.springframework.web.server.ResponseStatusException.class,
+                () -> service().addMember(5L, new CommitteeMemberRequest(7L, "MEMBER"), () -> "admin"));
+        verify(users, never()).findById(7L);
+    }
+
+    @Test void rejectsInactiveStudentProfilesFromCommitteeMembership() {
+        Committee committee = activeCommittee(5L);
+        User student = studentUser(7L);
+        student.getStudent().setAcademicStatus("INACTIVE");
+        when(committees.findByIdForUpdate(5L)).thenReturn(Optional.of(committee));
+        when(users.findById(7L)).thenReturn(Optional.of(student));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service().addMember(5L, new CommitteeMemberRequest(7L, "MEMBER"), () -> "admin"));
+        verify(memberships, never()).saveAndFlush(any());
     }
 
     @Test void departmentFilterIncludesFacultyMembersFromTheirDepartment() {
@@ -132,5 +230,27 @@ class CommitteeServiceTest {
 
     private CommitteeService service() {
         return new CommitteeService(committees, departments, memberships, users, authorization, faculty);
+    }
+
+    private Faculty facultyProfile(long facultyId, long userId) {
+        Role role = new Role(); role.setCode("FACULTY");
+        User user = new User(); user.setId(userId); user.setActive(true); user.setRole(role);
+        Faculty profile = new Faculty(); profile.setId(facultyId); profile.setUser(user); profile.setEmploymentStatus("ACTIVE");
+        return profile;
+    }
+
+    private Committee activeCommittee(long id) {
+        Committee committee = new Committee();
+        committee.setId(id);
+        committee.setActive(true);
+        committee.setStatus("ACTIVE");
+        return committee;
+    }
+
+    private User studentUser(long id) {
+        Role role = new Role(); role.setCode("STUDENT");
+        User user = new User(); user.setId(id); user.setRole(role); user.setActive(true);
+        Student profile = new Student(); profile.setUser(user); profile.setAcademicStatus("ACTIVE"); user.setStudent(profile);
+        return user;
     }
 }

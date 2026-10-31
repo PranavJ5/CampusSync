@@ -14,7 +14,15 @@ public interface CommitteeRepository extends JpaRepository<Committee, Long> {
 
     List<Committee> findByDepartmentId(Long departmentId);
 
+    List<Committee> findByActiveTrueAndStatusIgnoreCaseOrderByNameAsc(String status);
+
+    List<Committee> findByIdInAndActiveTrueAndStatusIgnoreCaseOrderByNameAsc(List<Long> ids, String status);
+
     Optional<Committee> findByCode(String code);
+
+    boolean existsByCodeIgnoreCase(String code);
+
+    boolean existsByCodeIgnoreCaseAndIdNot(String code, Long id);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select c from Committee c where c.id = :id")

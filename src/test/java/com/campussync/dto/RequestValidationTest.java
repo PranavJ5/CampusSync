@@ -27,8 +27,12 @@ class RequestValidationTest {
 
     @Test void studentSemesterCannotExceedEight() {
         var request = new StudentRequest(1L, 1L, "EN-1", LocalDate.now(), "ACTIVE", 9,
-                LocalDate.now().getYear(), null, null, null, null, null);
+                LocalDate.now().getYear(), null, null, null, null, null, null);
         assertFalse(validator.validate(request).isEmpty());
+    }
+
+    @Test void labBatchMustBeOneOfTheSupportedDivisionBGroups() {
+        assertFalse(validator.validate(new StudentLabBatchRequest("B5")).isEmpty());
     }
 
     @Test void optionalEventUpdateTextCannotBeBlank() {

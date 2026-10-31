@@ -84,7 +84,7 @@ class NotificationServiceTest {
         User second = new User(); second.setId(3L); second.setActive(true);
         var principal = (java.security.Principal) () -> "admin";
         when(authorization.authenticatedUser(principal)).thenReturn(admin);
-        when(authorization.requireRole(principal, "ADMIN")).thenReturn(admin);
+        when(authorization.requireRole(principal, "ADMINISTRATOR")).thenReturn(admin);
         when(users.findByActiveTrue()).thenReturn(java.util.List.of(first, second));
         when(notifications.saveAndFlush(any(Notification.class))).thenAnswer(call -> {
             Notification record = call.getArgument(0); record.setId(31L); return record;

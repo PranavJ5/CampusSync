@@ -7,6 +7,7 @@
     { "key": "baseUrl", "value": "http://localhost:8080" },
     { "key": "email", "value": "replace-with-test-email" },
     { "key": "password", "value": "replace-with-test-password" },
+    { "key": "selectedRole", "value": "STUDENT" },
     { "key": "accessToken", "value": "" }
   ],
   "item": [
@@ -15,7 +16,7 @@
       "request": {
         "method": "POST",
         "header": [{ "key": "Content-Type", "value": "application/json" }],
-        "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}" },
+        "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\",\n  \"selectedRole\": \"{{selectedRole}}\"\n}" },
         "url": "{{baseUrl}}/api/auth/login"
       },
       "event": [
@@ -26,6 +27,7 @@
             "exec": [
               "const body = pm.response.json();",
               "pm.expect(body.token).to.be.a('string').and.not.empty;",
+              "pm.expect(body.user.role).to.eql(pm.collectionVariables.get('selectedRole'));",
               "pm.collectionVariables.set('accessToken', body.token);"
             ]
           }

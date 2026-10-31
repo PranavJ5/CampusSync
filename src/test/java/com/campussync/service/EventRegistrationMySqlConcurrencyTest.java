@@ -1,7 +1,9 @@
 package com.campussync.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.campussync.entity.Committee;
 import com.campussync.entity.Department;
@@ -20,6 +22,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
+import java.security.Principal;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -87,6 +90,7 @@ class EventRegistrationMySqlConcurrencyTest {
     @Autowired CommitteeRepository committees;
     @Autowired UserRepository users;
     @Autowired StudentRepository students;
+    @Autowired CoordinatorProvisioningService coordinatorProvisioningService;
 
     private Long eventId;
     private List<Long> studentUserIds;
@@ -94,8 +98,12 @@ class EventRegistrationMySqlConcurrencyTest {
     @BeforeEach
     void createIsolatedTestData() {
         String suffix = UUID.randomUUID().toString().replace("-", "");
-        Role role = new Role(); role.setCode("STUDENT"); role.setName("Student");
-        role = roles.saveAndFlush(role);
+        Role role = roles.findByCode("STUDENT").orElseGet(() -> {
+            Role studentRole = new Role();
+            studentRole.setCode("STUDENT");
+            studentRole.setName("Student");
+            return roles.saveAndFlush(studentRole);
+        });
         Department department = new Department(); department.setCode("D" + suffix.substring(0, 8));
         department.setName("Concurrency " + suffix); department = departments.saveAndFlush(department);
         Committee committee = new Committee(); committee.setDepartment(department); committee.setCode("C" + suffix.substring(0, 8));
@@ -119,6 +127,43 @@ class EventRegistrationMySqlConcurrencyTest {
     }
 
     @Test
+    void coordinatorProvisioningRollsBackAccountWhenCommitteeDoesNotExist() {
+        String suffix = UUID.randomUUID().toString().replace("-", "");
+        Role administratorRole = roles.findByCode("ADMINISTRATOR").orElseGet(() -> {
+            Role value = new Role();
+            value.setCode("ADMINISTRATOR");
+            value.setName("Administrator");
+            return roles.saveAndFlush(value);
+        });
+        roles.findByCode("COMMITTEE_COORDINATOR").orElseGet(() -> {
+            Role value = new Role();
+            value.setCode("COMMITTEE_COORDINATOR");
+            value.setName("Committee Coordinator");
+            return roles.saveAndFlush(value);
+        });
+        User administrator = new User();
+        administrator.setRole(administratorRole);
+        administrator.setUsername("admin" + suffix);
+        administrator.setEmail("admin" + suffix + "@example.test");
+        administrator.setPasswordHash("test-hash");
+        administrator.setFirstName("Test");
+        administrator.setLastName("Admin");
+        User savedAdministrator = users.saveAndFlush(administrator);
+        String coordinatorUsername = "coord" + suffix;
+        Principal principal = () -> savedAdministrator.getUsername();
+
+        var request = new com.campussync.dto.CoordinatorProvisionRequest(
+                coordinatorUsername, coordinatorUsername + "@example.test",
+                "coordinator-password", "Test", "Coordinator", Long.MAX_VALUE);
+
+        assertThrows(java.util.NoSuchElementException.class,
+                () -> coordinatorProvisioningService.create(request, principal));
+
+        assertFalse(users.existsByUsernameIgnoreCase(coordinatorUsername),
+                "The account saved before the invalid committee lookup must roll back with the transaction.");
+    }
+
+    @Test
     void concurrentLastSeatRequestsCreateExactlyOneRegistration() throws Exception {
         CountDownLatch ready = new CountDownLatch(2);
         CountDownLatch start = new CountDownLatch(1);
@@ -131,6 +176,29 @@ class EventRegistrationMySqlConcurrencyTest {
             List<Boolean> outcomes = List.of(first.get(15, TimeUnit.SECONDS), second.get(15, TimeUnit.SECONDS));
             assertEquals(1, outcomes.stream().filter(Boolean::booleanValue).count(), "Exactly one request should succeed.");
             assertEquals(1, registrations.countActiveByEventId(eventId), "Exactly one confirmed row should persist.");
+        } finally {
+            start.countDown();
+            pool.shutdownNow();
+        }
+    }
+
+    @Test
+    void concurrentDuplicateRequestsForOneStudentCreateExactlyOneRegistration() throws Exception {
+        CountDownLatch ready = new CountDownLatch(2);
+        CountDownLatch start = new CountDownLatch(1);
+        ExecutorService pool = Executors.newFixedThreadPool(2);
+        Long studentId = studentUserIds.get(0);
+        try {
+            Future<Boolean> first = pool.submit(() -> attempt(studentId, ready, start));
+            Future<Boolean> second = pool.submit(() -> attempt(studentId, ready, start));
+            assertTrue(ready.await(10, TimeUnit.SECONDS), "Both duplicate requests should reach the barrier.");
+            start.countDown();
+            List<Boolean> outcomes = List.of(first.get(15, TimeUnit.SECONDS), second.get(15, TimeUnit.SECONDS));
+            assertEquals(1, outcomes.stream().filter(Boolean::booleanValue).count(),
+                    "Only one concurrent request for the student should succeed.");
+            assertEquals(1, registrations.findByEventIdAndUserId(eventId, studentId).stream()
+                    .filter(registration -> "CONFIRMED".equalsIgnoreCase(registration.getRegistrationStatus()))
+                    .count());
         } finally {
             start.countDown();
             pool.shutdownNow();

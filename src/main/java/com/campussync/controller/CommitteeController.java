@@ -36,6 +36,11 @@ public class CommitteeController {
         return committees.list();
     }
 
+    @GetMapping("/manageable")
+    public List<CommitteeResponse> manageable(Principal principal) {
+        return committees.manageable(principal);
+    }
+
     @GetMapping("/{id}")
     public CommitteeResponse get(@PathVariable Long id, Principal principal) {
         authorization.authenticatedUser(principal);
@@ -75,7 +80,7 @@ public class CommitteeController {
 
     @PostMapping
     public ResponseEntity<CommitteeResponse> create(@Valid @RequestBody CommitteeRequest request, Principal principal) {
-        authorization.requireRole(principal, "ADMIN");
+        authorization.requireRole(principal, "ADMINISTRATOR");
         CommitteeResponse response = committees.create(request);
         URI location = ServletUriComponentsBuilder.fromCurrentRequest().path("/{id}").buildAndExpand(response.id()).toUri();
         return ResponseEntity.created(location).body(response);
@@ -85,7 +90,7 @@ public class CommitteeController {
     public CommitteeResponse update(@PathVariable Long id, @Valid @RequestBody CommitteeRequest request, Principal principal) {
         // This request replaces coordinator assignment, department, status and active state too.
         // Keep full committee-profile administration with admins; coordinators manage their scoped events/members.
-        authorization.requireRole(principal, "ADMIN");
+        authorization.requireRole(principal, "ADMINISTRATOR");
         return committees.update(id, request);
     }
 }

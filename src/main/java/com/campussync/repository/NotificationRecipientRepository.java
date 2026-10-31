@@ -7,10 +7,10 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface NotificationRecipientRepository extends JpaRepository<NotificationRecipient, Long> {
-    Page<NotificationRecipient> findByUserIdOrderByNotificationCreatedAtDesc(Long userId, Pageable pageable);
     Page<NotificationRecipient> findByUserIdAndReadOrderByNotificationCreatedAtDesc(Long userId, boolean read, Pageable pageable);
     Page<NotificationRecipient> findByUserIdAndNotificationCategoryIgnoreCaseOrderByNotificationCreatedAtDesc(Long userId, String category, Pageable pageable);
     Page<NotificationRecipient> findByUserIdAndReadAndNotificationCategoryIgnoreCaseOrderByNotificationCreatedAtDesc(Long userId, boolean read, String category, Pageable pageable);
+    Page<NotificationRecipient> findByUserIdOrderByNotificationCreatedAtDesc(Long userId, Pageable pageable);
     Optional<NotificationRecipient> findByNotificationIdAndUserId(Long notificationId, Long userId);
     long countByUserIdAndReadFalse(Long userId);
 

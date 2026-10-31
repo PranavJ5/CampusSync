@@ -6,14 +6,17 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.never;
 
 import com.campussync.entity.Event;
 import com.campussync.entity.EventRegistration;
 import com.campussync.entity.Committee;
+import com.campussync.entity.Department;
 import com.campussync.entity.Role;
 import com.campussync.entity.Student;
 import com.campussync.entity.User;
 import com.campussync.dto.RegistrationResponse;
+import com.campussync.dto.AdministratorEventRegistrationResponse;
 import com.campussync.dto.AttendanceBatchRequest;
 import com.campussync.dto.AttendanceEntry;
 import com.campussync.repository.EventRegistrationRepository;
@@ -29,6 +32,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 @ExtendWith(MockitoExtension.class)
 class EventRegistrationServiceTest {
@@ -82,6 +87,75 @@ class EventRegistrationServiceTest {
         assertThrows(IllegalStateException.class, () -> service.register(2L, 8L));
     }
 
+    @Test void permitsReRegistrationAfterCancellation() {
+        startRequest(); addUser();
+        Student student = new Student(); student.setAcademicStatus("ACTIVE");
+        when(students.findByUserId(8L)).thenReturn(Optional.of(student));
+        EventRegistration cancelled = new EventRegistration();
+        cancelled.setRegistrationStatus("CANCELLED");
+        when(registrations.findByEventIdAndUserId(2L, 8L)).thenReturn(Optional.of(cancelled));
+        when(registrations.countActiveByEventId(2L)).thenReturn(0L);
+        when(registrations.saveAndFlush(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        EventRegistration result = service.register(2L, 8L);
+
+        assertEquals("CONFIRMED", result.getRegistrationStatus());
+        assertEquals("NOT_MARKED", result.getAttendanceStatus());
+        verify(registrations).saveAndFlush(cancelled);
+        verify(notifications).createRegistrationConfirmation(event, user);
+    }
+
+    @Test void administratorRegistrationReportUsesStudentProfileData() {
+        Principal principal = () -> "administrator";
+        User administrator = new User();
+        when(authorization.requireRole(principal, "ADMINISTRATOR")).thenReturn(administrator);
+        event.setTitle("Campus workshop");
+        when(events.findById(2L)).thenReturn(Optional.of(event));
+
+        user.setFirstName("Ada");
+        user.setLastName("Student");
+        user.setEmail("ada@example.test");
+        Student student = new Student();
+        student.setContactNumber("555-0100");
+        student.setEnrollmentNumber("ENR-123");
+        student.setCurrentSemester(4);
+        Department department = new Department();
+        department.setName("Computer Science");
+        student.setDepartment(department);
+        user.setStudent(student);
+        EventRegistration registration = new EventRegistration();
+        registration.setEvent(event);
+        registration.setUser(user);
+        registration.setRegistrationStatus("CONFIRMED");
+        when(registrations.findByEventIdOrderByRegisteredAtAsc(2L)).thenReturn(java.util.List.of(registration));
+
+        java.util.List<AdministratorEventRegistrationResponse> results =
+                service.administratorRegistrations(2L, principal);
+
+        assertEquals(1, results.size());
+        AdministratorEventRegistrationResponse result = results.getFirst();
+        assertEquals(event.getTitle(), result.eventName());
+        assertEquals("Ada Student", result.studentFullName());
+        assertEquals("ada@example.test", result.emailAddress());
+        assertEquals("555-0100", result.phoneNumber());
+        assertEquals("ENR-123", result.enrollmentNumber());
+        assertEquals(4, result.semester());
+        assertEquals("Computer Science", result.department());
+        assertEquals("CONFIRMED", result.registrationStatus());
+        verify(authorization).requireRole(principal, "ADMINISTRATOR");
+    }
+
+    @Test void administratorRegistrationReportRejectsOtherRolesBeforeLoadingRecords() {
+        Principal principal = () -> "coordinator";
+        when(authorization.requireRole(principal, "ADMINISTRATOR"))
+                .thenThrow(new ResponseStatusException(HttpStatus.FORBIDDEN));
+
+        assertThrows(ResponseStatusException.class, () -> service.administratorRegistrations(2L, principal));
+
+        verify(events, never()).findById(2L);
+        verify(registrations, never()).findByEventIdOrderByRegisteredAtAsc(2L);
+    }
+
     @Test void rejectsDuplicateRegistration() {
         startRequest(); addUser();
         Student student = new Student(); student.setAcademicStatus("ACTIVE");
@@ -110,6 +184,38 @@ class EventRegistrationServiceTest {
     @Test void rejectsRegistrationAfterDeadline() {
         event.setRegistrationDeadline(LocalDateTime.now().minusSeconds(1)); startRequest();
         assertThrows(IllegalStateException.class, () -> service.register(2L, 8L));
+    }
+
+    @Test void myRegistrationsLoadsOnlyTheRequestedUserAndMapsEventFields() {
+        user.setFirstName("Test");
+        user.setLastName("Student");
+        event.setTitle("Campus workshop");
+        event.setVenue("Main hall");
+        EventRegistration registration = new EventRegistration();
+        registration.setEvent(event);
+        registration.setUser(user);
+        registration.setRegistrationStatus("CONFIRMED");
+        registration.setAttendanceStatus("NOT_MARKED");
+        when(registrations.findByUserIdOrderByRegisteredAtDesc(8L)).thenReturn(java.util.List.of(registration));
+
+        var results = service.myRegistrations(8L);
+
+        assertEquals(1, results.size());
+        assertEquals(2L, results.getFirst().eventId());
+        assertEquals("Campus workshop", results.getFirst().eventTitle());
+        assertEquals(event.getStartsAt(), results.getFirst().startsAt());
+        assertEquals(event.getRegistrationDeadline(), results.getFirst().registrationDeadline());
+        assertEquals("Main hall", results.getFirst().venue());
+        assertEquals("CONFIRMED", results.getFirst().status());
+        verify(registrations).findByUserIdOrderByRegisteredAtDesc(8L);
+    }
+
+    @Test void myRegistrationsReturnsAnEmptyListWhenTheUserHasNoRegistrations() {
+        when(registrations.findByUserIdOrderByRegisteredAtDesc(8L)).thenReturn(java.util.List.of());
+
+        assertEquals(java.util.List.of(), service.myRegistrations(8L));
+
+        verify(registrations).findByUserIdOrderByRegisteredAtDesc(8L);
     }
 
     @Test void cancellationReleasesSeatAndCreatesOwnNotificationBeforeDeadline() {
@@ -173,7 +279,7 @@ class EventRegistrationServiceTest {
     @Test void batchAttendanceUpdatesConfirmedParticipantsInOneEventScopedOperation() {
         Committee committee = new Committee(); committee.setId(4L); event.setCommittee(committee);
         event.setStartsAt(LocalDate.now().atStartOfDay());
-        User admin = new User(); Role adminRole = new Role(); adminRole.setCode("ADMIN"); admin.setRole(adminRole);
+        User admin = new User(); Role adminRole = new Role(); adminRole.setCode("ADMINISTRATOR"); admin.setRole(adminRole);
         when(events.findByIdForUpdate(2L)).thenReturn(Optional.of(event));
         when(authorization.requireAdministratorOrCommitteeCoordinator(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.eq(4L)))
                 .thenReturn(admin);
@@ -195,7 +301,7 @@ class EventRegistrationServiceTest {
     @Test void batchAttendanceRejectsDuplicateParticipantIds() {
         Committee committee = new Committee(); committee.setId(4L); event.setCommittee(committee);
         event.setStartsAt(LocalDate.now().atStartOfDay());
-        User admin = new User(); Role adminRole = new Role(); adminRole.setCode("ADMIN"); admin.setRole(adminRole);
+        User admin = new User(); Role adminRole = new Role(); adminRole.setCode("ADMINISTRATOR"); admin.setRole(adminRole);
         when(events.findByIdForUpdate(2L)).thenReturn(Optional.of(event));
         when(authorization.requireAdministratorOrCommitteeCoordinator(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.eq(4L)))
                 .thenReturn(admin);

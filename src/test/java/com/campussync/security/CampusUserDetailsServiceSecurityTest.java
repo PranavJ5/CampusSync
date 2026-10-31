@@ -28,6 +28,19 @@ class CampusUserDetailsServiceSecurityTest {
     }
 
     @Test
+    void preservesAdministratorRoleFromDatabase() {
+        UserRepository repository = mock(UserRepository.class);
+        User user = user("ADMINISTRATOR", true);
+        when(repository.findByEmail("administrator@example.com")).thenReturn(Optional.of(user));
+
+        CampusUserPrincipal principal = (CampusUserPrincipal) new CampusUserDetailsService(repository)
+                .loadUserByUsername("administrator@example.com");
+
+        assertEquals("ADMINISTRATOR", principal.getRoleCode());
+        assertEquals("ROLE_ADMINISTRATOR", principal.getAuthorities().iterator().next().getAuthority());
+    }
+
+    @Test
     void preservesInactiveAccountState() {
         UserRepository repository = mock(UserRepository.class);
         User user = user("STUDENT", false);

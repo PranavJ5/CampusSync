@@ -29,7 +29,7 @@ public class FacultyService {
 
     @Transactional(readOnly = true)
     public List<FacultyResponse> list(Principal principal) {
-        authorization.requireRole(principal, "ADMIN");
+        authorization.requireRole(principal, "ADMINISTRATOR");
         return faculty.findAll().stream().map(FacultyResponse::from).toList();
     }
 
@@ -37,7 +37,7 @@ public class FacultyService {
     public FacultyResponse get(Long id, Principal principal) {
         User actor = authorization.authenticatedUser(principal);
         Faculty profile = find(id);
-        boolean admin = actor.getRole() != null && "ADMIN".equalsIgnoreCase(actor.getRole().getCode());
+        boolean admin = actor.getRole() != null && "ADMINISTRATOR".equalsIgnoreCase(actor.getRole().getCode());
         boolean self = actor.getRole() != null && "FACULTY".equalsIgnoreCase(actor.getRole().getCode())
                 && actor.getId().equals(profile.getUser().getId());
         if (!admin && !self) throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Faculty profile access is restricted.");
@@ -46,14 +46,14 @@ public class FacultyService {
 
     @Transactional
     public FacultyResponse create(FacultyRequest request, Principal principal) {
-        authorization.requireRole(principal, "ADMIN");
+        authorization.requireRole(principal, "ADMINISTRATOR");
         Faculty result = new Faculty(); apply(result, request);
         return FacultyResponse.from(faculty.saveAndFlush(result));
     }
 
     @Transactional
     public FacultyResponse update(Long id, FacultyRequest request, Principal principal) {
-        authorization.requireRole(principal, "ADMIN");
+        authorization.requireRole(principal, "ADMINISTRATOR");
         Faculty result = find(id); apply(result, request);
         return FacultyResponse.from(faculty.saveAndFlush(result));
     }

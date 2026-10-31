@@ -1,10 +1,14 @@
 package com.campussync.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.campussync.dto.StudentRequest;
+import com.campussync.dto.StudentLabBatchRequest;
 import com.campussync.entity.Department;
 import com.campussync.entity.Role;
 import com.campussync.entity.Student;
@@ -38,12 +42,43 @@ class StudentServiceTest {
             Student student = call.getArgument(0); student.setId(4L); return student;
         });
         var request = new StudentRequest(12L, 8L, " EN-1 ", LocalDate.now(), " ACTIVE ", 1, LocalDate.now().getYear(),
-                null, null, null, null, null);
+                null, null, null, null, null, "B");
 
         var response = new StudentService(students, users, departments, authorization, faculty).create(request, () -> "admin");
 
         assertEquals(4L, response.id());
         assertEquals("EN-1", response.enrollmentNumber());
         assertEquals("ACTIVE", response.academicStatus());
+    }
+
+    @Test void administratorCanAssignStudentLabBatch() {
+        Student student = new Student();
+        student.setId(4L);
+        student.setUser(new User());
+        student.getUser().setId(12L);
+        student.getUser().setUsername("student");
+        student.getUser().setEmail("student@example.test");
+        student.setDepartment(new Department());
+        student.setEnrollmentNumber("EN-1");
+        when(students.findById(4L)).thenReturn(Optional.of(student));
+        when(students.saveAndFlush(student)).thenReturn(student);
+
+        var response = new StudentService(students, users, departments, authorization, faculty)
+                .updateLabBatch(4L, new StudentLabBatchRequest("b2"), () -> "admin");
+
+        assertEquals("B2", response.labBatch());
+    }
+
+    @Test void nonAdministratorCannotAssignStudentLabBatch() {
+        var studentPrincipal = (java.security.Principal) () -> "student";
+        when(authorization.requireRole(studentPrincipal, "ADMINISTRATOR"))
+                .thenThrow(new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.FORBIDDEN));
+
+        var service = new StudentService(students, users, departments, authorization, faculty);
+
+        assertThrows(org.springframework.web.server.ResponseStatusException.class,
+                () -> service.updateLabBatch(4L, new StudentLabBatchRequest("B1"), studentPrincipal));
+        verify(students, never()).findById(4L);
     }
 }

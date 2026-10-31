@@ -4,14 +4,20 @@ import com.campussync.entity.CommitteeMember;
 import com.campussync.entity.User;
 import com.campussync.repository.CommitteeMemberRepository;
 import com.campussync.repository.UserRepository;
+import com.campussync.security.ApprovedRole;
 import java.security.Principal;
+import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class AuthorizationService {
+    private static final Set<String> SCOPED_COORDINATOR_ROLES =
+            Set.of("COMMITTEE_COORDINATOR", "FACULTY", "STUDENT");
+
     private final UserRepository users;
     private final CommitteeMemberRepository memberships;
 
@@ -38,9 +44,10 @@ public class AuthorizationService {
     public User requireAdministratorOrCommitteeCoordinator(Principal principal, Long committeeId) {
         User user = authenticatedUser(principal);
         String role = user.getRole() == null ? "" : user.getRole().getCode().toUpperCase(Locale.ROOT);
-        if ("ADMIN".equals(role)) return user;
-        if (!java.util.Set.of("COORDINATOR", "FACULTY", "STUDENT").contains(role))
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Administrator or committee coordinator role is required.");
+        if (ApprovedRole.ADMINISTRATOR.name().equals(role)) return user;
+        if (!SCOPED_COORDINATOR_ROLES.contains(role))
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "Administrator or assigned committee coordinator access is required.");
         boolean assigned = memberships.findByCommitteeId(committeeId).stream()
                 .filter(member -> member.getUser().getId().equals(user.getId()))
                 .anyMatch(AuthorizationService::isActiveCoordinatorMembership);
@@ -48,8 +55,26 @@ public class AuthorizationService {
         return user;
     }
 
+    public List<Long> coordinatorCommitteeIds(Principal principal) {
+        User user = authenticatedUser(principal);
+        String role = user.getRole() == null ? "" : user.getRole().getCode().toUpperCase(Locale.ROOT);
+        if (!SCOPED_COORDINATOR_ROLES.contains(role)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "Assigned committee coordinator access is required.");
+        }
+        return memberships.findByUserIdAndMembershipStatusIgnoreCaseOrderByJoinedOnDesc(
+                        user.getId(), "ACTIVE").stream()
+                .filter(AuthorizationService::isActiveCoordinatorMembership)
+                .map(member -> member.getCommittee().getId())
+                .distinct()
+                .toList();
+    }
+
     private static boolean isActiveCoordinatorMembership(CommitteeMember member) {
         return "ACTIVE".equalsIgnoreCase(member.getMembershipStatus())
+                && member.getCommittee() != null
+                && member.getCommittee().isActive()
+                && "ACTIVE".equalsIgnoreCase(member.getCommittee().getStatus())
                 && "COORDINATOR".equalsIgnoreCase(member.getMemberRole());
     }
 }

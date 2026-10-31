@@ -4,6 +4,7 @@ import com.campussync.dto.EventRequest;
 import com.campussync.dto.EventResponse;
 import com.campussync.dto.EventCancellationRequest;
 import com.campussync.dto.EventUpdateRequest;
+import com.campussync.service.AuthorizationService;
 import com.campussync.service.EventService;
 import jakarta.validation.Valid;
 import java.net.URI;
@@ -24,17 +25,31 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 @RequestMapping("/api/events")
 public class EventController {
     private final EventService service;
-    public EventController(EventService service) { this.service = service; }
+    private final AuthorizationService authorization;
+    public EventController(EventService service, AuthorizationService authorization) {
+        this.service = service;
+        this.authorization = authorization;
+    }
 
     @GetMapping
     public List<EventResponse> list(@RequestParam(required = false) String category,
             @RequestParam(required = false) Long committeeId, @RequestParam(required = false) Long departmentId,
-            @RequestParam(required = false) LocalDateTime from, @RequestParam(required = false) LocalDateTime to) {
+            @RequestParam(required = false) LocalDateTime from, @RequestParam(required = false) LocalDateTime to,
+            Principal principal) {
+        authorization.requireRole(principal, "STUDENT");
         return service.browse(category, committeeId, departmentId, from, to);
     }
 
+    @GetMapping("/management")
+    public List<EventResponse> managementList(Principal principal) {
+        return service.managementList(principal);
+    }
+
     @GetMapping("/{id}")
-    public EventResponse get(@PathVariable Long id) { return service.browseById(id); }
+    public EventResponse get(@PathVariable Long id, Principal principal) {
+        authorization.requireRole(principal, "STUDENT");
+        return service.browseById(id);
+    }
 
     @PostMapping
     public ResponseEntity<EventResponse> create(@Valid @RequestBody EventRequest request, Principal principal) {

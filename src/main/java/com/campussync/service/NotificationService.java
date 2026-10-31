@@ -116,7 +116,7 @@ public class NotificationService {
         String audience = request.audience().trim().toUpperCase(Locale.ROOT);
         List<User> targetUsers;
         if ("CIRCULAR".equals(category)) {
-            authorization.requireRole(principal, "ADMIN");
+            authorization.requireRole(principal, "ADMINISTRATOR");
             targetUsers = resolveCircularAudience(audience, request);
         } else if ("COMMITTEE_ANNOUNCEMENT".equals(category)) {
             if (!"COMMITTEE".equals(audience) || request.committeeId() == null)
@@ -133,7 +133,7 @@ public class NotificationService {
                 if (!profile.getDepartment().getId().equals(request.departmentId()))
                     throw new org.springframework.web.server.ResponseStatusException(HttpStatus.FORBIDDEN,
                             "Faculty may publish academic updates only to their own department.");
-            } else if (actor.getRole() == null || !"ADMIN".equalsIgnoreCase(actor.getRole().getCode())) {
+            } else if (actor.getRole() == null || !"ADMINISTRATOR".equalsIgnoreCase(actor.getRole().getCode())) {
                 throw new org.springframework.web.server.ResponseStatusException(HttpStatus.FORBIDDEN,
                         "Administrator or faculty role is required.");
             }
@@ -202,7 +202,7 @@ public class NotificationService {
         return switch (audience) {
             case "ALL" -> users.findByActiveTrue();
             case "ROLE" -> {
-                if (request.targetRole() == null || !List.of("ADMIN", "FACULTY", "STUDENT", "COORDINATOR")
+                if (request.targetRole() == null || !List.of("ADMINISTRATOR", "FACULTY", "STUDENT", "COMMITTEE_COORDINATOR")
                         .stream().anyMatch(role -> role.equalsIgnoreCase(request.targetRole().trim())))
                     throw new IllegalArgumentException("A valid targetRole is required for role audience.");
                 yield users.findByRoleCodeIgnoreCaseAndActiveTrue(request.targetRole().trim());

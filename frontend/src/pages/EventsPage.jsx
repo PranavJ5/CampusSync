@@ -45,7 +45,7 @@ function EventCard({ event }) {
     {event.posterUrl || event.poster ? <img className="event-poster" src={event.posterUrl || event.poster} alt={`${eventTitle(event)} poster`} /> : <div className="event-poster event-poster--placeholder" aria-label="Event poster placeholder">CampusSync</div>}
     <div className="card-body d-flex flex-column"><div className="d-flex justify-content-between gap-2 mb-2"><span className="badge text-bg-primary">{event.category || 'Campus event'}</span>{seats != null && <span className={`badge ${seats > 0 ? 'text-bg-success' : 'text-bg-danger'}`}>{seats} seats left</span>}</div>
       <h2 className="h5">{eventTitle(event)}</h2><p className="small text-secondary mb-2">Hosted by {eventCommittee(event)}</p>
-      <dl className="small mb-3"><div><dt className="d-inline fw-semibold">When: </dt><dd className="d-inline">{displayDate(eventStart(event))}</dd></div><div><dt className="d-inline fw-semibold">Venue: </dt><dd className="d-inline">{event.venue || 'To be announced'}</dd></div></dl>
+      <dl className="small mb-3"><div><dt className="d-inline fw-semibold">When: </dt><dd className="d-inline">{displayDate(eventStart(event))}</dd></div><div><dt className="d-inline fw-semibold">Venue: </dt><dd className="d-inline">{event.venue || 'To be announced'}</dd></div><div><dt className="d-inline fw-semibold">Registered: </dt><dd className="d-inline">{event.registeredCount ?? 0}</dd></div></dl>
       <Link className="btn btn-outline-primary mt-auto" to={`/events/${eventId(event)}`}>View event</Link>
     </div>
   </article></div>

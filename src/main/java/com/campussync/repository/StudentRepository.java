@@ -14,5 +14,13 @@ public interface StudentRepository extends JpaRepository<Student, Long>, org.spr
 
     List<Student> findByDepartmentIdAndCurrentSemester(Long departmentId, Integer currentSemester);
 
+    List<Student> findByDepartmentIdAndCurrentSemesterAndDivisionIgnoreCaseOrderByEnrollmentNumberAsc(
+            Long departmentId, Integer currentSemester, String division);
+
+    List<Student> findByDepartmentIdAndCurrentSemesterAndDivisionIgnoreCaseAndAcademicStatusIgnoreCaseAndUserActiveTrueOrderByEnrollmentNumberAsc(
+            Long departmentId, Integer currentSemester, String division, String academicStatus);
+
     Optional<Student> findByEnrollmentNumber(String enrollmentNumber);
+
+    boolean existsByEnrollmentNumberIgnoreCase(String enrollmentNumber);
 }

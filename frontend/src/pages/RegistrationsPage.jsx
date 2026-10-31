@@ -29,7 +29,7 @@ export default function RegistrationsPage() {
     if (!window.confirm(`Cancel your registration for “${eventTitle(event)}”?`)) return
     setNotice('')
     try {
-      await api.delete(`/registrations/${eventId}`)
+      await api.delete(`/events/${eventId}/registrations`)
       setNotice('Your registration has been cancelled.')
       load()
     } catch (requestError) { setError(getErrorMessage(requestError, 'This registration could not be cancelled.')) }

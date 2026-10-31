@@ -43,7 +43,7 @@ public class DepartmentController {
 
     @PostMapping
     public ResponseEntity<DepartmentResponse> create(@Valid @RequestBody DepartmentRequest request, Principal principal) {
-        authorization.requireRole(principal, "ADMIN");
+        authorization.requireRole(principal, "ADMINISTRATOR");
         DepartmentResponse response = departments.create(request);
         URI location = ServletUriComponentsBuilder.fromCurrentRequest().path("/{id}").buildAndExpand(response.id()).toUri();
         return ResponseEntity.created(location).body(response);
@@ -51,7 +51,7 @@ public class DepartmentController {
 
     @PutMapping("/{id}")
     public DepartmentResponse update(@PathVariable Long id, @Valid @RequestBody DepartmentRequest request, Principal principal) {
-        authorization.requireRole(principal, "ADMIN");
+        authorization.requireRole(principal, "ADMINISTRATOR");
         return departments.update(id, request);
     }
 }

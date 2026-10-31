@@ -40,6 +40,26 @@ public class EventService {
     public List<Event> published() { return events.findByStatusInOrderByStartsAtAsc(List.of("PUBLISHED", "REGISTRATION_CLOSED", "CANCELLED")); }
 
     @Transactional(readOnly = true)
+    public List<EventResponse> managementList(Principal principal) {
+        User actor = authorization.authenticatedUser(principal);
+        List<Event> manageableEvents;
+        if (actor.getRole() != null && "ADMINISTRATOR".equalsIgnoreCase(actor.getRole().getCode())) {
+            manageableEvents = events.findAllByOrderByStartsAtAsc();
+        } else {
+            List<Long> committeeIds = authorization.coordinatorCommitteeIds(principal);
+            manageableEvents = committeeIds.isEmpty()
+                    ? List.of()
+                    : events.findByCommitteeIdInOrderByStartsAtAsc(committeeIds);
+        }
+        return manageableEvents.stream()
+                .map(event -> {
+                    long registered = registrations.countActiveByEventId(event.getId());
+                    return EventResponse.from(event, event.getCapacity() - (int) registered, registered);
+                })
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
     public List<EventResponse> browse(String category, Long committeeId, Long departmentId,
                                       LocalDateTime from, LocalDateTime to) {
         if (from != null && to != null && to.isBefore(from))
@@ -47,14 +67,18 @@ public class EventService {
         return events.browsePublicEvents(List.of("PUBLISHED", "REGISTRATION_CLOSED", "CANCELLED"),
                         category == null || category.isBlank() ? null : category.trim(), committeeId,
                         departmentId, from, to).stream()
-                .map(event -> EventResponse.from(event, event.getCapacity() - (int) registrations.countActiveByEventId(event.getId())))
+                .map(event -> {
+                    long registered = registrations.countActiveByEventId(event.getId());
+                    return EventResponse.from(event, event.getCapacity() - (int) registered, registered);
+                })
                 .toList();
     }
 
     @Transactional(readOnly = true)
     public EventResponse browseById(Long id) {
         Event event = publishedById(id);
-        return EventResponse.from(event, event.getCapacity() - (int) registrations.countActiveByEventId(id));
+        long registered = registrations.countActiveByEventId(id);
+        return EventResponse.from(event, event.getCapacity() - (int) registered, registered);
     }
 
     @Transactional(readOnly = true)
@@ -75,6 +99,9 @@ public class EventService {
             throw new IllegalArgumentException("Registration deadline must be no later than the event start.");
         Committee committee = committees.findById(request.committeeId())
                 .orElseThrow(() -> new NoSuchElementException("Committee not found."));
+        if (!committee.isActive() || !"ACTIVE".equalsIgnoreCase(committee.getStatus())) {
+            throw new IllegalStateException("Events can only be created for an active committee.");
+        }
         User actor = authorization.requireAdministratorOrCommitteeCoordinator(principal, committee.getId());
         Event event = new Event();
         event.setCommittee(committee); event.setTitle(request.title()); event.setDescription(request.description());
